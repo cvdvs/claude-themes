@@ -1,11 +1,13 @@
 // Clusters: a graph view. Dense multicolored node clusters on pure black, joined
-// by fine grey edges, with bundles and a few long links between clusters. Everything sits under the
-// sidebar, in the right strip and along the top edge; the chat column only gets a dark glow.
+// by fine grey edges, with bundles and a few long links between clusters. The graph stands in a
+// column down the right of the window, where reply lines end, and is framed by a band along the top
+// and one along the bottom that thin out toward the left; a fine chain of nodes runs down the narrow
+// margin left of the replies. The sidebar only gets a faint glow, the chat text a dark one.
 // Motion: nodes twinkle softly; while busy, small pulses of light run along the edges.
 
-import { W, H, ZONES, rng, begin, open } from './kit'
+import { W, H, rng, begin, open } from './kit'
 
-type Region = 'side' | 'right' | 'top' | 'foot'
+type Region = 'right' | 'top' | 'foot' | 'edge'
 type Node = { x: number; y: number; s: number; c: number }
 type Cluster = { x: number; y: number; rad: number; c: number; region: Region; shape: number; ids: number[] }
 type Twinkle = { x: number; y: number; r: number; c: number; d: number }
@@ -15,7 +17,10 @@ type Walk = { path: string; d: number; c: number }
 const PAL = ['#2ed8ec', '#45e27b', '#f24bd0', '#ff8a36', '#9d66ff', '#f4e23e', '#4f7eff', '#ff5569']
 // Node radii by size class.
 const SIZES = [1.5, 2.2, 3, 4.3]
-const T = ZONES.text
+// Where the reply text sits in the app window: nothing but a dark glow goes here. Left of it is a
+// thin margin (x 256 to 298) and the sidebar, which is drawn almost solid.
+const T = { x0: 298, x1: 992, y0: 104, y1: 1244 }
+const SIDE = 258
 
 const col = (i: number): string => PAL[i % PAL.length] ?? '#ffffff'
 const rad = (s: number): number => SIZES[s] ?? 2
@@ -30,17 +35,22 @@ function light(hex: string): string {
 const inText = (x: number, y: number, m: number): boolean =>
   x > T.x0 - m && x < T.x1 + m && y > T.y0 - m && y < T.y1 + m
 
-// A straight link is kept only if no part of it comes near the text zone.
+// A straight link is kept only if no part of it comes near the text zone or goes under the sidebar.
 function clear(a: Node, b: Node): boolean {
   const n = Math.max(2, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 5))
   for (let i = 0; i <= n; i++) {
     const t = i / n
-    if (inText(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, 12)) return false
+    const x = a.x + (b.x - a.x) * t
+    if (x < SIDE || inText(x, a.y + (b.y - a.y) * t, 12)) return false
   }
   return true
 }
 
-const ok = (x: number, y: number): boolean => x > 3 && x < W - 3 && y > 3 && y < H - 3 && !inText(x, y, 14)
+const ok = (x: number, y: number): boolean => x > SIDE && x < W - 3 && y > 3 && y < H - 3 && !inText(x, y, 14)
+
+// How far a point is from the text zone.
+const roomOf = (x: number, y: number): number =>
+  Math.hypot(Math.max(T.x0 - x, 0, x - T.x1), Math.max(T.y0 - y, 0, y - T.y1))
 
 const G = (() => {
   const rand = rng(1607)
@@ -48,22 +58,28 @@ const G = (() => {
   const nodes: Node[] = []
   const clusters: Cluster[] = []
 
-  // Cluster centers: a zigzag down the sidebar, a looser one down the right strip, a row along the top
-  // and a sparse one along the very bottom. Sizes vary a lot, like a real graph.
-  const sideColors = [0, 2, 1, 4, 3, 6, 5, 7, 0]
-  const rightColors = [4, 5, 0, 7, 1, 2, 3, 6]
-  const topColors = [3, 1, 6, 2, 5]
-  sideColors.forEach((c, i) =>
-    clusters.push({ x: (i % 2 ? 175 : 78) + jit(24), y: 70 + i * 160 + jit(40), rad: 26 + rand() * rand() * 34, c, region: 'side', shape: i % 3, ids: [] }),
+  // The right column: three loose lanes from the top corner to the bottom one, the outer lane
+  // carrying the biggest clusters. [x, radius, color]
+  const rightSpec: Array<[number, number, number]> = [
+    [1180, 30, 4], [1090, 20, 5], [1206, 40, 0], [1048, 17, 7], [1158, 34, 1], [1214, 28, 2], [1074, 22, 3],
+    [1184, 42, 6], [1046, 17, 5], [1206, 32, 7], [1110, 26, 0], [1196, 38, 4], [1130, 30, 1],
+  ]
+  rightSpec.forEach(([x, r, c], i) =>
+    clusters.push({ x: x + jit(10), y: 58 + i * 108 + jit(16), rad: r + jit(3), c, region: 'right', shape: i % 3, ids: [] }),
   )
-  rightColors.forEach((c, i) =>
-    clusters.push({ x: (i % 2 ? 1132 : 1190) + jit(14), y: 74 + i * 182 + jit(30), rad: 24 + rand() * rand() * 26, c, region: 'right', shape: (i + 1) % 3, ids: [] }),
+  // The top band, right of the chat title, thinning out toward the left. [x, y, radius, color]
+  const topSpec: Array<[number, number, number, number]> = [
+    [950, 46, 26, 3], [830, 64, 22, 1], [712, 40, 19, 6], [598, 62, 15, 2], [492, 48, 12, 5],
+  ]
+  topSpec.forEach(([x, y, r, c], i) =>
+    clusters.push({ x: x + jit(12), y: y + jit(6), rad: r, c, region: 'top', shape: (i + 2) % 3, ids: [] }),
   )
-  topColors.forEach((c, i) =>
-    clusters.push({ x: 360 + i * 165 + jit(28), y: 64 + jit(24), rad: 18 + rand() * 10, c, region: 'top', shape: (i + 2) % 3, ids: [] }),
-  )
-  ;[7, 0, 4].forEach((c, i) =>
-    clusters.push({ x: 430 + i * 250 + jit(40), y: 1394 + jit(5), rad: 9 + rand() * 4, c, region: 'foot', shape: 0, ids: [] }),
+  // The bottom band: one row between the last reply and the input box, one under the input box.
+  const footSpec: Array<[number, number, number, number]> = [
+    [924, 1284, 27, 7], [800, 1386, 20, 0], [676, 1282, 22, 4], [548, 1388, 16, 3], [430, 1284, 15, 6], [330, 1390, 11, 2],
+  ]
+  footSpec.forEach(([x, y, r, c], i) =>
+    clusters.push({ x: x + jit(12), y: y + jit(4), rad: r, c, region: 'foot', shape: i % 2 ? 0 : 1, ids: [] }),
   )
 
   const addNode = (x: number, y: number, s: number, c: number): number => {
@@ -78,7 +94,7 @@ const G = (() => {
 
   // Scatter one cluster's nodes around (cx, cy) in its shape.
   const scatter = (cl: Cluster, cx: number, cy: number, r: number, shape: number, count: number) => {
-    const theta = rand() * Math.PI
+    const theta = cl.region === 'right' ? rand() * Math.PI : jit(0.35)
     const dx = Math.cos(theta)
     const dy = Math.sin(theta)
     if (shape === 2 && ok(cx, cy)) cl.ids.push(addNode(cx, cy, 3, cl.c))
@@ -117,12 +133,12 @@ const G = (() => {
 
   const sats: Cluster[] = []
   clusters.forEach(cl => {
-    const big = Math.round(cl.rad * (cl.region === 'side' ? 1.9 : cl.region === 'right' ? 2 : 1.1))
+    const big = Math.round(cl.rad * (cl.region === 'right' ? 2.1 : 1.7))
     scatter(cl, cl.x, cl.y, cl.rad, cl.shape, big + Math.floor(rand() * 12))
     // One or two tight satellite groups nearby, in a neighboring color.
-    const nSat = cl.region === 'foot' ? 0 : cl.region === 'top' ? 1 : 1 + Math.floor(rand() * 2)
+    const nSat = cl.region === 'right' ? 1 + Math.floor(rand() * 2) : cl.rad > 13 ? 1 : 0
     for (let s = 0; s < nSat; s++) {
-      const a = rand() * Math.PI * 2
+      const a = cl.region === 'right' ? rand() * Math.PI * 2 : rand() < 0.5 ? jit(0.5) : Math.PI + jit(0.5)
       const d = cl.rad * (1.6 + rand() * 0.9)
       const sx = cl.x + Math.cos(a) * d
       const sy = cl.y + Math.sin(a) * d
@@ -132,14 +148,29 @@ const G = (() => {
       sats.push(sat)
     }
   })
+
+  // The margin chain: small nodes down the thin strip between the sidebar and the replies, its color
+  // drifting slowly from top to bottom.
+  // Every so often a small bead of three or four nodes sits on it.
+  const edge: Cluster = { x: 271, y: 680, rad: 0, c: 4, region: 'edge', shape: 0, ids: [] }
+  for (let y = 70 + rand() * 10, k = 0; y < 1266; y += 22 + rand() * 14, k++) {
+    const x = 271 + Math.sin(y / 170 + 1) * 6 + jit(2.5)
+    const p = rand()
+    const c = rand() < 0.7 ? (Math.floor(y / 190) + 4) % PAL.length : Math.floor(rand() * PAL.length)
+    if (!ok(x, y)) continue
+    edge.ids.push(addNode(x, y, p < 0.35 ? 0 : p < 0.82 ? 1 : 2, c))
+    if (k % 6 === 3) for (let b = 0; b < 3; b++) if (ok(x + jit(7), y)) edge.ids.push(addNode(x + jit(7), y + jit(9), rand() < 0.5 ? 0 : 1, nodeColor(c)))
+  }
+  const mains = clusters.slice()
+  clusters.push(edge)
   const groups = [...clusters, ...sats]
 
-  // Loose nodes around the edges, like the strays in a real graph view.
+  // Loose nodes around the frame, like the strays in a real graph view.
   const strays: number[] = []
-  for (let i = 0; i < 110; i++) {
+  for (let i = 0; i < 120; i++) {
     const p = rand()
-    const x = p < 0.43 ? 6 + rand() * 244 : p < 0.8 ? 1072 + rand() * 174 : 270 + rand() * 780
-    const y = p < 0.8 ? 8 + rand() * (H - 16) : p < 0.94 ? 8 + rand() * 124 : 1380 + rand() * 24
+    const x = p < 0.55 ? 1004 + rand() * 242 : p < 0.78 ? 480 + rand() * 520 : 300 + rand() * 700
+    const y = p < 0.55 ? 8 + rand() * (H - 16) : p < 0.78 ? 6 + rand() * 84 : 1258 + rand() * 146
     if (ok(x, y)) strays.push(addNode(x, y, rand() < 0.7 ? 0 : 1, Math.floor(rand() * PAL.length)))
   }
 
@@ -180,38 +211,46 @@ const G = (() => {
   })
   // Satellites hang off their nearest main cluster.
   sats.forEach(s => {
-    const host = clusters.slice().sort((p, q) => Math.hypot(p.x - s.x, p.y - s.y) - Math.hypot(q.x - s.x, q.y - s.y))[0]
+    const host = mains.slice().sort((p, q) => Math.hypot(p.x - s.x, p.y - s.y) - Math.hypot(q.x - s.x, q.y - s.y))[0]
     if (host) for (let i = 0; i < 4; i++) link(pickId(s.ids), pickId(host.ids), near, true)
   })
   // Bundles of edges between neighboring clusters.
-  clusters.forEach((a, ai) => {
-    clusters
+  mains.forEach((a, ai) => {
+    mains
       .map((b, bi) => ({ b, bi, d: Math.hypot(a.x - b.x, a.y - b.y) }))
       .filter(o => o.bi > ai && o.d < 430)
       .sort((p, q) => p.d - q.d)
       .slice(0, 3)
       .forEach(({ b, d }) => {
-        const n = Math.round((d < 250 ? 12 : 7) + rand() * 6)
+        // Lighter between the small clusters of the two bands.
+        const n = a.region !== 'right' && b.region !== 'right' ? Math.round(3 + rand() * 4) : Math.round((d < 250 ? 12 : 7) + rand() * 6)
         for (let i = 0; i < n; i++) link(pickId(a.ids), pickId(b.ids), bundle, true)
       })
   })
-  // Long links: down each side, and along the top between the two corners.
-  const byRegion = (r: Region) => clusters.filter(c => c.region === r)
-  const longPairs: Array<[Cluster | undefined, Cluster | undefined]> = []
-  for (const r of ['side', 'right'] as const) {
-    const cs = byRegion(r)
-    for (let i = 0; i + 2 < cs.length; i++) longPairs.push([cs[i], cs[i + 2 + (i % 3)]])
-  }
+  // Long links: down the right column, along each band, and round the two corners.
+  const byRegion = (r: Region) => mains.filter(c => c.region === r)
+  const rights = byRegion('right')
   const tops = byRegion('top')
-  const side0 = byRegion('side')[0]
-  const right0 = byRegion('right')[0]
   const feet = byRegion('foot')
-  longPairs.push([byRegion('side')[8], feet[0]], [feet[0], feet[1]], [feet[1], feet[2]], [feet[2], byRegion('right')[7]])
-  longPairs.push([side0, tops[2]], [tops[0], tops[3]], [tops[1], tops[4]], [tops[2], right0], [side0, right0], [side0, tops[4]])
+  const longPairs: Array<[Cluster | undefined, Cluster | undefined]> = []
+  for (let i = 0; i + 2 < rights.length; i++) longPairs.push([rights[i], rights[i + 2 + (i % 3)]])
+  for (let i = 0; i + 2 < tops.length; i++) longPairs.push([tops[i], tops[i + 2]])
+  for (let i = 0; i + 2 < feet.length; i++) longPairs.push([feet[i], feet[i + 2]])
+  const lastRight = rights[rights.length - 1]
+  longPairs.push([tops[0], rights[0]], [tops[0], rights[2]], [tops[1], rights[0]], [tops[1], rights[1]])
+  longPairs.push([feet[0], lastRight], [feet[1], lastRight], [feet[0], rights[rights.length - 2]], [feet[1], rights[rights.length - 3]])
   longPairs.forEach(([a, b]) => {
     if (!a || !b) return
     for (let i = 0; i < 4; i++) link(pickId(a.ids), pickId(b.ids), long, false)
   })
+  // The margin chain ties into the far ends of both bands.
+  const chainEnds = edge.ids.slice().sort((p, q) => nodeAt(p).y - nodeAt(q).y)
+  const tieIn = (ends: number[], cl: Cluster | undefined) => {
+    if (cl) ends.forEach(e => nearest(e, cl.ids, 2).forEach(j => link(e, j, long, true)))
+  }
+  tieIn(chainEnds.slice(0, 2), tops[tops.length - 1])
+  tieIn(chainEnds.slice(-2), feet[feet.length - 1])
+  tieIn(chainEnds.slice(-1), feet[feet.length - 2])
   // Strays hang off their nearest node.
   const all = nodes.map((_, i) => i)
   strays.forEach(i => nearest(i, all, 1 + Math.floor(rand() * 2)).forEach(j => link(i, j, near, false)))
@@ -273,15 +312,15 @@ const G = (() => {
     }).join(''),
   ).join('')
 
-  // A soft colored bloom under each cluster, kept clear of the text zone.
-  const halos = clusters
-    .map(cl => {
-      const room =
-        cl.region === 'side' ? T.x0 + 6 - cl.x : cl.region === 'right' ? cl.x - (T.x1 - 6) : cl.region === 'top' ? T.y0 + 6 - cl.y : cl.y - (T.y1 + 30)
-      const r = Math.max(cl.rad, Math.min(cl.rad * 2.3, room))
-      return `<circle cx="${Math.round(cl.x)}" cy="${Math.round(cl.y)}" r="${Math.round(r)}" fill="url(#h${cl.c})"/>`
-    })
-    .join('')
+  // A soft colored bloom under each cluster, its bright part kept clear of the text zone; and two
+  // large faint glows under the sidebar, the only thing that shows through it.
+  const halos =
+    mains
+      .map(cl => {
+        const r = Math.max(cl.rad, Math.min(cl.rad * 2.3, roomOf(cl.x, cl.y) + 22))
+        return `<circle cx="${Math.round(cl.x)}" cy="${Math.round(cl.y)}" r="${Math.round(r)}" fill="url(#h${cl.c})"/>`
+      })
+      .join('') + `<circle cx="96" cy="430" r="250" fill="url(#h4)" opacity=".5"/><circle cx="120" cy="1120" r="270" fill="url(#h0)" opacity=".42"/>`
 
   return { dots, halos, near: near.join(''), bundle: bundle.join(''), long: long.join(''), twinkles, walks }
 })()

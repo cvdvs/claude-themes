@@ -26,10 +26,8 @@ async function apply($: EngineInterface, id: LookId) {
     $.ui.toast(unpainted)
   }
   await update($, current, () => id)
-  const set = await $.theme.set(one.theme)
-  if (!set.isDrawn) {
-    $.ui.status(set.reason)
-  }
+  // Before the app's window attaches nothing draws it yet; session.attach sets it again then.
+  await $.theme.set(one.theme)
 }
 
 async function saved($: EngineInterface, key: string): Promise<LookId | undefined> {
@@ -103,6 +101,16 @@ export const register: Register = on => {
     await apply($, id)
 
     return { text: `${LOOKS[id].label} on for this chat.` }
+  })
+
+  // A chat opened before the app's window attached: set the look again now that it can draw.
+  on('session.attach', async ($, e, next) => {
+    const attached = await next(e)
+    if (e.surface === 'desktop' || e.surface === 'mobile') {
+      await apply($, findLook(await read($, current)) ?? FALLBACK)
+    }
+
+    return attached
   })
 
   on('turn.start', async ($, e, next) => {

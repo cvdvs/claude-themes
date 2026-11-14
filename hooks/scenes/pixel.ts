@@ -1,19 +1,22 @@
 // Pixel: dark graph paper with pixel-block masses in greys and cream, mono letters
 // packed into their cells, stepped contour outlines, a red checker block that turns black where it
-// crosses a cream silhouette, and purple ink line work sweeping diagonally with tick marks, bursts
-// and a spiral. Art sits under the sidebar, in the right strip and along the top and bottom edges;
-// the text column gets only the faint grid. Motion: letter runs glitch, odometer cells count,
-// checker cells blink, a cursor block types across the top, a scanline rolls down the art columns.
+// crosses a cream silhouette, and purple ink line work sweeping with tick marks, bursts and a
+// spiral. The right column is the main stage; a band of letter-packed blocks runs along the bottom
+// under the input box and climbs the thin left margin, the top band keeps its letter clouds, and
+// one purple track ties the bottom band to the right column. The text column gets only the faint
+// grid. Motion: letter runs glitch, odometer cells count, checker cells blink, a cursor block types
+// across the top, a scanline rolls down the right column and the margin.
 // Busy: everything ticks faster, the scanline brightens, a pen point rides the purple sweeps.
-import { W, H, ZONES, rng, begin, open } from './kit'
+import { W, H, rng, begin, open } from './kit'
 
 type P = [number, number]
 type Blob = [number, number, number] // x, y, radius
 type Field = (x: number, y: number) => number
 
 const C = 20 // pixel-block cell, snapped to the graph paper
-const SB = ZONES.sidebar.x1
-const RS = ZONES.right.x0
+const LM = 256 // the thin left margin, x 256–292, beside the sidebar
+const RS = 1000 // the right column
+const BAND = 1240 // the bottom band starts here; above it the text column stays clear
 
 const BG = '#0e0e10'
 const INK = '#1b1a19' // darkest block
@@ -240,21 +243,27 @@ export function pixelScene(isBusy: boolean, now: number): string {
   const ink = vnoise(77, 46)
 
   // --- masses ------------------------------------------------------------------------------------
-  const fA = blobField(
+  // The bottom band: a low ridge of blocks along the input box, climbing the left margin.
+  const fA0 = blobField(
     [
-      [110, 1150, 168],
-      [60, 960, 128],
-      [160, 806, 108],
-      [204, 640, 84],
-      [226, 500, 62],
-      [50, 724, 82],
-      [30, 1320, 112],
-      [150, 372, 58],
-      [64, 300, 50],
+      [292, 1300, 76],
+      [272, 1196, 44],
+      [268, 1120, 30],
+      [440, 1330, 62],
+      [520, 1370, 60],
+      [584, 1298, 80],
+      [680, 1320, 50],
+      [730, 1352, 58],
+      [852, 1306, 70],
+      [968, 1300, 54],
+      [1080, 1296, 62],
+      [1170, 1336, 72],
     ],
     11,
     0.44,
   )
+  // Pressed down above the band (outside the margin), so the ridge never rises behind the text.
+  const fA: Field = (x, y) => fA0(x, y) - (x > 292 ? Math.max(0, (BAND - y) / 50) : 0)
   const fB = blobField(
     [
       [1210, 330, 128],
@@ -274,15 +283,15 @@ export function pixelScene(isBusy: boolean, now: number): string {
     37,
     0.32,
   )
-  const A = mass(fA, ink, 0, 240, 240, 1400, r, 0.06, 0.05)
+  const A = mass(fA, ink, 260, 1060, 1260, 1410, r, 0.06, 0.05)
   const B = mass(fB, ink, RS, 160, 1260, 560, r, -0.02, 0.06)
   const Cm = mass(fC, () => 0, RS, 840, 1260, 1200, r, 0.3, 0.45)
 
   // Low dark blocks along the bottom edge, rising higher at the two art columns.
   const nb = vnoise(91, 40)
   const floor: string[] = []
-  for (let x = 0; x < W; x += C) {
-    const art = x < SB || x >= RS
+  for (let x = LM + 4; x < W; x += C) {
+    const art = x < 300 || x >= RS
     const top = art ? 1250 : 1340
     for (let y = top; y < H; y += C) {
       const v = nb(x, y) + (y - top) / 260
@@ -303,8 +312,7 @@ export function pixelScene(isBusy: boolean, now: number): string {
   // Contours: outer outlines of each mass plus loose islands drifting off them.
   const fI = blobField(
     [
-      [80, 250, 70],
-      [190, 330, 46],
+      [470, 1262, 26],
       [1120, 640, 40],
       [1220, 1290, 70],
     ],
@@ -312,10 +320,10 @@ export function pixelScene(isBusy: boolean, now: number): string {
     0.7,
   )
   const contours =
-    contour(fA, 0.05, 0, 200, 250, 1410, 10) +
+    contour(fA, 0.05, 256, 1040, 1250, 1410, 10) +
     contour(fB, 0.04, RS, 120, 1250, 620, 10) +
     contour(fC, 0.0, RS, 800, 1250, 1240, 10) +
-    contour(fI, 0.12, 0, 160, 250, 420, 10) +
+    contour(fI, 0.12, 400, 1230, 560, 1300, 10) +
     contour(fI, 0.12, RS, 580, 1250, 700, 10) +
     contour(fI, 0.12, RS, 1200, 1250, 1410, 10)
 
@@ -384,16 +392,32 @@ export function pixelScene(isBusy: boolean, now: number): string {
     }
     return s
   }
-  const clouds = cloud(300, 26, 7, 30, 17) + cloud(720, 40, 6, 26, 29) + cloud(RS + 4, 590, 5, 17, 41) + cloud(8, 170, 6, 22, 53)
+  // ...and a thin rain of them down the left margin.
+  const clouds = cloud(300, 26, 7, 30, 17) + cloud(720, 40, 6, 26, 29) + cloud(1064, 590, 5, 17, 41) + cloud(LM + 3, 520, 34, 3, 53)
 
   // --- purple ink ----------------------------------------------------------------------------------
-  const S1: Cubic = [[-10, 1412], [60, 1250], [140, 1120], [252, 960]]
-  const S2: Cubic = [[0, 1000], [90, 1090], [170, 1230], [250, 1392]]
+  // S1 drops down the left margin, runs the bottom band above the input box and rises into S7.
+  const S1: Cubic = [[264, 1110], [270, 1370], [800, 1316], [1060, 1232]]
+  const S2: Cubic = [[258, 1408], [318, 1330], [400, 1262], [520, 1236]]
+  // Where they cross, a hatched hub.
+  let XB: P = cpt(S1, 0)
+  let gap = Infinity
+  for (let i = 0; i <= 80; i++) {
+    for (let j = 0; j <= 80; j++) {
+      const a = cpt(S1, i / 80)
+      const b = cpt(S2, j / 80)
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1])
+      if (d < gap) {
+        gap = d
+        XB = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+      }
+    }
+  }
   const S3: Cubic = [[RS + 2, 660], [1120, 600], [1180, 520], [1256, 430]]
   const S4: Cubic = [[RS + 4, 420], [1130, 462], [1196, 556], [1256, 640]]
   const S5: Cubic = [[262, 148], [330, 104], [420, 46], [530, -6]]
   const S6: Cubic = [[300, 150], [372, 104], [470, 44], [590, -6]]
-  const S7: Cubic = [[RS + 4, 1188], [1120, 1120], [1190, 1104], [1256, 1132]]
+  const S7: Cubic = [[1060, 1232], [1110, 1150], [1190, 1104], [1256, 1132]]
   const spiral = (() => {
     const cx = 1186
     const cy = 92
@@ -414,15 +438,15 @@ export function pixelScene(isBusy: boolean, now: number): string {
     ticks(S3, 0.05, 0.9, r) +
     ticks(S5, 0.05, 0.9, r) +
     ticks(S7, 0.1, 0.9, r) +
-    burst(132, 1176, 16, 14, 46, r, [2, SB - 4]) +
+    burst(XB[0], XB[1], 16, 14, 34, r, [LM + 2, W]) +
     burst(1166, 538, 13, 12, 40, r, [RS + 2, W]) +
     burst(1160, 1262, 11, 10, 36, r, [RS + 2, W]) +
-    burst(196, 262, 9, 9, 28, r, [2, SB - 4]) +
-    `M${RS + 10} 1350q60 -40 120 -8t110 -30` +
-    `M14 560q40 -60 110 -50t96 -64`
+    burst(274, 180, 9, 9, 28, r, [LM + 2, 294]) +
+    `M1070 1350q60 -40 120 -8t110 -30` +
+    `M276 214q-16 60 2 120t-4 130`
   const dots = [
-    [118, 1060],
-    [214, 1210],
+    [282, 1060],
+    [652, 1262],
     [1092, 512],
     [1232, 590],
     [612, 18],
@@ -431,8 +455,8 @@ export function pixelScene(isBusy: boolean, now: number): string {
     .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.2"/>`)
     .join('')
   const glyphs = [
-    [180, 1110, '∂'],
-    [30, 1060, 'φ'],
+    [598, 1270, '∂'],
+    [266, 482, 'φ'],
     [1198, 486, 'ψ'],
     [1076, 560, 'Σ'],
     [1206, 1222, '∫'],
@@ -482,7 +506,7 @@ export function pixelScene(isBusy: boolean, now: number): string {
 
   const scanDur = isBusy ? 3.6 : 8
   const scan = [
-    [0, SB],
+    [LM, 36],
     [RS, W - RS],
   ]
     .map(([x, w]) => `<rect class="sc" x="${x}" y="-80" width="${w}" height="80" fill="url(#sl)" style="animation-duration:${scanDur}s;animation-delay:${begin(now, scanDur)}"/>`)

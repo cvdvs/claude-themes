@@ -1,24 +1,27 @@
 // The first two looks: Night swirl (pitch black, neon ribbons) and Pixel grid (pale paper, black pixels).
-// Drawn on a 1600 × 1000 canvas; they predate the per-project scenes.
+// Laid out for the app window: the art frames the chat as a right-hand column (x 1000–1250) joined to
+// a top band and a bottom band. Behind the chat text there is only soft color (swirl) or bare paper (grid).
 
-import { begin, rng } from './kit'
+import { H, W, begin, open, rng } from './kit'
 
 // ---------------------------------------------------------------- swirl scene
 
-const KNOT = { x: 1300, y: 520 }
+// The glowing point sits in the right column, about two fifths down. Two ribbons arrive along the top
+// band and drop into it; three run along the bottom band and climb the column to it.
+const KNOT = { x: 1110, y: 560 }
 
 const RIBBONS = [
-  { d: 'M -120 170 C 300 70, 520 430, 820 380 S 1150 470, 1300 520', from: '#22e1ff', to: '#8a5cff', dur: 38 },
-  { d: 'M -120 430 C 250 300, 600 150, 770 330 S 1060 570, 1300 520', from: '#7b4dff', to: '#2fd8e8', dur: 47 },
-  { d: 'M -100 760 C 200 920, 520 640, 700 560 S 1100 420, 1300 520', from: '#ff3fd2', to: '#7b4dff', dur: 53 },
-  { d: 'M 180 1120 C 380 820, 700 770, 900 640 S 1200 540, 1300 520', from: '#ffd23a', to: '#ff5a2a', dur: 61 },
-  { d: 'M -120 990 C 300 1010, 420 700, 640 720 S 1000 700, 1300 520', from: '#b6ff3a', to: '#22e1ff', dur: 70 },
+  { d: 'M -120 24 C 240 76, 540 -6, 830 34 S 1210 70, 1215 250 S 1150 470, 1110 560', from: '#22e1ff', to: '#8a5cff', x1: 0, y1: 30, dur: 38 },
+  { d: 'M -120 92 C 200 12, 700 30, 880 44 S 1020 130, 1030 300 S 1060 545, 1110 560', from: '#7b4dff', to: '#2fd8e8', x1: 0, y1: 60, dur: 47 },
+  { d: 'M -120 1250 C 260 1330, 600 1236, 900 1266 S 1210 1180, 1220 1000 S 1040 800, 1050 700 S 1090 590, 1110 560', from: '#ff3fd2', to: '#7b4dff', x1: 0, y1: 1330, dur: 53 },
+  { d: 'M 120 1440 C 420 1372, 700 1398, 960 1350 S 1060 1200, 1050 1040 S 1220 820, 1210 720 S 1140 590, 1110 560', from: '#ffd23a', to: '#ff5a2a', x1: 120, y1: 1410, dur: 61 },
+  { d: 'M -120 1394 C 280 1422, 640 1352, 880 1396 S 1240 1400, 1236 1180 S 1160 900, 1130 760 S 1110 610, 1110 560', from: '#b6ff3a', to: '#22e1ff', x1: 0, y1: 1390, dur: 70 },
 ]
 
 export function swirlScene(isBusy: boolean, now: number): string {
   const defs = RIBBONS.map(
     (r, i) =>
-      `<linearGradient id="g${i}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${KNOT.x}" y2="${KNOT.y}"><stop offset="0" stop-color="${r.from}"/><stop offset="1" stop-color="${r.to}"/></linearGradient>`,
+      `<linearGradient id="g${i}" gradientUnits="userSpaceOnUse" x1="${r.x1}" y1="${r.y1}" x2="${KNOT.x}" y2="${KNOT.y}"><stop offset="0" stop-color="${r.from}"/><stop offset="1" stop-color="${r.to}"/></linearGradient>`,
   ).join('')
 
   const sway = RIBBONS.map(
@@ -31,49 +34,66 @@ export function swirlScene(isBusy: boolean, now: number): string {
         `<g class="r${i}"><path d="${r.d}" fill="none" stroke="url(#g${i})" stroke-width="${width}" stroke-linecap="round"/></g>`,
     ).join('')}</g>`
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  const knotCycle = isBusy ? 2.4 : 9
+  const beamCycle = isBusy ? 1.6 : 9
+
+  return `${open()}
 <defs>${defs}
-<filter id="haze" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="48"/></filter>
-<filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="9"/></filter>
+<filter id="haze" filterUnits="userSpaceOnUse" x="-200" y="-200" width="${W + 400}" height="${H + 400}"><feGaussianBlur stdDeviation="48"/></filter>
+<filter id="soft" filterUnits="userSpaceOnUse" x="-100" y="-100" width="${W + 200}" height="${H + 200}"><feGaussianBlur stdDeviation="9"/></filter>
+<filter id="line" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="9"/></filter>
 <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.55 0"/></filter>
 <radialGradient id="knot"><stop offset="0" stop-color="#ffffff"/><stop offset="0.35" stop-color="#d9d4ff" stop-opacity="0.6"/><stop offset="1" stop-color="#8a5cff" stop-opacity="0"/></radialGradient>
 <linearGradient id="beam" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
 </defs>
 <style>
 g[class^=r]{transform-origin:${KNOT.x}px ${KNOT.y}px}
-@keyframes sway0{from{transform:rotate(-7deg) translate(-30px,20px)}to{transform:rotate(6deg) translate(25px,-30px)}}
-@keyframes sway1{from{transform:rotate(8deg) translate(20px,-25px)}to{transform:rotate(-5deg) translate(-35px,30px)}}
+@keyframes sway0{from{transform:rotate(-3deg) translate(-18px,12px)}to{transform:rotate(2.6deg) translate(14px,-16px)}}
+@keyframes sway1{from{transform:rotate(3.2deg) translate(12px,-14px)}to{transform:rotate(-2.4deg) translate(-20px,16px)}}
 @keyframes breathe{0%,100%{opacity:var(--lo)}50%{opacity:var(--hi)}}
 ${sway}
 .ribbons{transition:opacity 2s}
-.knot{--lo:${isBusy ? 0.75 : 0.18};--hi:${isBusy ? 1 : 0.32};animation:breathe ${isBusy ? 2.4 : 9}s ease-in-out infinite}
-.beam{--lo:${isBusy ? 0.55 : 0.08};--hi:${isBusy ? 0.95 : 0.16};animation:breathe ${isBusy ? 1.6 : 9}s ease-in-out infinite}
+.knot{--lo:${isBusy ? 0.75 : 0.18};--hi:${isBusy ? 1 : 0.32};animation:breathe ${knotCycle}s ease-in-out ${begin(now, knotCycle)} infinite}
+.beam{--lo:${isBusy ? 0.55 : 0.08};--hi:${isBusy ? 0.95 : 0.16};animation:breathe ${beamCycle}s ease-in-out ${begin(now, beamCycle, 1)} infinite}
 </style>
-<rect width="1600" height="1000" fill="#000"/>
+<rect width="${W}" height="${H}" fill="#000"/>
 <g class="ribbons" opacity="${isBusy ? 1 : 0.78}">
 ${layer(150, 'haze', 0.55)}
 ${layer(44, 'soft', 0.85)}
 </g>
-<rect class="beam" x="${KNOT.x}" y="${KNOT.y - 2}" width="${1600 - KNOT.x}" height="4" fill="url(#beam)" filter="url(#soft)"/>
+<g class="beam"><rect x="${KNOT.x}" y="${KNOT.y - 2}" width="${W - KNOT.x + 40}" height="4" fill="url(#beam)" filter="url(#line)"/></g>
 <circle class="knot" cx="${KNOT.x}" cy="${KNOT.y}" r="70" fill="url(#knot)"/>
-<rect width="1600" height="1000" filter="url(#grain)" opacity="0.13"/>
+<rect width="${W}" height="${H}" filter="url(#grain)" opacity="0.13"/>
 </svg>`
 }
 
 // ---------------------------------------------------------------- grid scene
 
-const CELL = 40
-const COLS = 40
-const ROWS = 25
+const CELL = 50
+const COLS = Math.ceil(W / CELL)
+const ROWS = Math.ceil(H / CELL)
 
+// Dark masses as ellipses, in cells: a cliff down the right column, a heavy bottom-right corner, a low
+// run along the bottom band, and a broken frieze along the header strip between the title and the icons.
 const BLOBS = [
-  { x: 5, y: 25, r: 10 },
-  { x: 18, y: 27, r: 9 },
-  { x: 35, y: 12, r: 8.5 },
-  { x: 39, y: 2, r: 5 },
-  { x: 29, y: 21, r: 5.5 },
-  { x: 14, y: 2, r: 2.2 },
+  { x: 25.8, y: 10.5, rx: 4.6, ry: 2.6 },
+  { x: 25.8, y: 15, rx: 5.4, ry: 4.2 },
+  { x: 25, y: 19.5, rx: 3.6, ry: 3.6 },
+  { x: 25.8, y: 23, rx: 5.2, ry: 3.2 },
+  { x: 7.5, y: 25.4, rx: 1.7, ry: 1 },
+  { x: 24.5, y: 28.6, rx: 8, ry: 4.6 },
+  { x: 10.5, y: 29.3, rx: 7.5, ry: 3.2 },
+  { x: 15, y: 25.6, rx: 2.2, ry: 1.2 },
+  { x: 18.8, y: -0.6, rx: 2.6, ry: 2 },
+  { x: 12, y: -0.4, rx: 1.8, ry: 1.2 },
 ]
+
+// Cells that may go dark: the right column from x 1050 (below the header icons), the bottom band, and
+// the header strip between the title and the icons. Never behind the chat text, never under the sidebar.
+const canDarken = (x: number, y: number): boolean =>
+  x >= 5 && (y === 0 ? x >= 10 && x <= 19 : x >= 21 || y >= 25)
+// Count numbers follow the same zones, plus the empty row just above the bottom band.
+const canNumber = (x: number, y: number): boolean => canDarken(x, y) || (x >= 5 && y === 24)
 
 function buildGrid(): boolean[][] {
   const rand = rng(7)
@@ -83,10 +103,11 @@ function buildGrid(): boolean[][] {
     for (let x = 0; x < COLS; x++) {
       let v = 0
       for (const b of BLOBS) {
-        v = Math.max(v, 1 - Math.hypot(x - b.x, y - b.y) / b.r)
+        v = Math.max(v, 1 - Math.hypot((x - b.x) / b.rx, (y - b.y) / b.ry))
       }
       const jitter = (rand() - 0.5) * 0.42
-      dark[y]!.push(v + jitter > 0.32 || (v < 0.05 && rand() < 0.012))
+      const on = v + jitter > 0.32 || (v < 0.05 && rand() < 0.025)
+      dark[y]!.push(on && canDarken(x, y))
     }
   }
   return dark
@@ -119,36 +140,35 @@ const GRID_STILL = (() => {
         continue
       }
       const n = neighbors(x, y)
-      if (n > 0) {
-        frontier.push([x, y])
-        numbers.push(`<text x="${x * CELL + 20}" y="${y * CELL + 24}">${n}</text>`)
+      if (n > 0 && canNumber(x, y)) {
+        numbers.push(`<text x="${x * CELL + CELL / 2}" y="${y * CELL + CELL / 2 + 4.5}">${n}</text>`)
+        if (canDarken(x, y)) frontier.push([x, y])
       }
     }
   }
 
-  // Dot-matrix heart, faint, top left (tracing-paper layer).
+  // Dot-matrix heart, faint, near the top of the right column under the frame (tracing-paper layer).
   const dots: string[] = []
   for (let gy = 0; gy < 15; gy++) {
     for (let gx = 0; gx < 17; gx++) {
       const u = (gx - 8) / 6.2
       const v = -(gy - 6) / 6.2
       if ((u * u + v * v - 1) ** 3 - u * u * v ** 3 <= 0) {
-        dots.push(`<circle cx="${250 + gx * 16}" cy="${150 + gy * 16}" r="5"/>`)
+        dots.push(`<circle cx="${1021 + gx * 13}" cy="${204 + gy * 13}" r="4.2"/>`)
       }
     }
   }
 
-  // Cells that flip on and off now and then.
+  // Cells that flip on and off now and then, only where dark cells are allowed.
   const blink = Array.from({ length: 14 }, () => frontier[Math.floor(rand() * frontier.length)]!)
-  const glowPath = Array.from({ length: 8 }, () => {
-    const options: Array<[number, number]> = []
-    for (let y = 2; y < ROWS - 2; y++) {
-      for (let x = 20; x < COLS - 2; x++) {
-        if (DARK[y]![x]) options.push([x, y])
-      }
+  // The blue cell's stops: dark cells that stay in view (not under the input box at rows 26–27).
+  const options: Array<[number, number]> = []
+  for (let y = 0; y <= 25; y++) {
+    for (let x = 5; x < COLS; x++) {
+      if (DARK[y]![x]) options.push([x, y])
     }
-    return options[Math.floor(rand() * options.length)]!
-  })
+  }
+  const glowPath = Array.from({ length: 8 }, () => options[Math.floor(rand() * options.length)]!)
 
   return { cells: cells.join(''), numbers: numbers.join(''), dots: dots.join(''), blink, glowPath }
 })()
@@ -162,7 +182,7 @@ export function gridScene(isBusy: boolean, now: number): string {
   const blinkCells = g.blink
     .map(([x, y], i) => {
       const dur = 7 + (i % 5) * 1.7
-      return `<rect class="b" style="animation-duration:${dur}s;animation-delay:${begin(now, dur)}" x="${x * CELL}" y="${y * CELL}" width="${CELL}" height="${CELL}"/>`
+      return `<rect class="b" style="animation-duration:${dur}s;animation-delay:${begin(now, dur, i)}" x="${x * CELL}" y="${y * CELL}" width="${CELL}" height="${CELL}"/>`
     })
     .join('')
 
@@ -171,12 +191,13 @@ export function gridScene(isBusy: boolean, now: number): string {
     .join('')
   const [gx, gy] = g.glowPath[0]!
   const glowCycle = 7
+  const humCycle = 6
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
-<defs><filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="9"/></filter></defs>
+  return `${open()}
+<defs><filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="11"/></filter></defs>
 <style>
 .cells{fill:#1e1e1e}
-.nums{font:500 11px ui-monospace,Menlo,monospace;fill:#6a6a6a;text-anchor:middle}
+.nums{font:500 13px ui-monospace,Menlo,monospace;fill:#6a6a6a;text-anchor:middle}
 .dots{fill:none;stroke:#9a9a96;stroke-width:1.3;opacity:.45}
 .rules{stroke:#9a9a96;stroke-width:1;fill:none}
 .b{fill:#1e1e1e;opacity:0;animation-name:flip;animation-iteration-count:infinite;animation-timing-function:steps(1)}
@@ -186,19 +207,18 @@ export function gridScene(isBusy: boolean, now: number): string {
 .glow{${
     isBusy
       ? `animation:walk ${glowCycle}s steps(1) ${begin(now, glowCycle)} infinite`
-      : `transform:translate(${gx * CELL}px,${gy * CELL}px);animation:hum 6s ease-in-out infinite`
+      : `transform:translate(${gx * CELL}px,${gy * CELL}px);animation:hum ${humCycle}s ease-in-out ${begin(now, humCycle)} infinite`
   }}
 </style>
-<rect width="1600" height="1000" fill="#e3e3e0"/>
+<rect width="${W}" height="${H}" fill="#e3e3e0"/>
 <g class="dots">${g.dots}</g>
 <g class="cells">${g.cells}${blinkCells}</g>
 <g class="nums">${g.numbers}</g>
 <g class="rules">
-<path d="M 0 40.5 H 1600 M 0 48.5 H 1600 M 0 960.5 H 1600"/>
-${cross(400, 440)}${cross(1120, 120)}${cross(760, 800)}${cross(240, 640)}
-<rect x="1360.5" y="680.5" width="160" height="96"/><rect x="1368.5" y="688.5" width="144" height="80"/>
+<path d="M 0 40.5 H ${W} M 0 48.5 H ${W} M 0 1240.5 H ${W} M 262.5 0 V ${H} M 270.5 0 V ${H}"/>
+${cross(266, 330)}${cross(266, 1060)}${cross(580, 1274)}${cross(1028, 640)}
+<rect x="1045.5" y="76.5" width="160" height="96"/><rect x="1053.5" y="84.5" width="144" height="80"/>
 </g>
-<g class="glow"><rect x="4" y="4" width="32" height="32" fill="#2b2fd9" filter="url(#glow)"/><rect x="10" y="10" width="20" height="20" fill="#3a3ff0" opacity=".85"/></g>
+<g class="glow"><rect x="5" y="5" width="40" height="40" fill="#2b2fd9" filter="url(#glow)"/><rect x="12.5" y="12.5" width="25" height="25" fill="#3a3ff0" opacity=".85"/></g>
 </svg>`
 }
-

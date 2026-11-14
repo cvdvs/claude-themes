@@ -1,18 +1,19 @@
 // Sigil: a night-black ground with film grain and a faint cloudy floor. In the
-// right strip, half of a hand-drawn instrument: stacked concentric ellipses on one vertical axis,
+// right column, half of a hand-drawn instrument: stacked concentric ellipses on one vertical axis,
 // numbered nodes, dashed plumb lines, cut off by the window edge. Beads travel the rings, perspective
-// hands sweep three of them and two loose orbits precess. Under the sidebar, a tall bone-white
-// cybersigil (thorned cells on a spine) breathes. While busy, a light runs down the axis, the nodes
-// light up tier by tier as it passes and the base ripples.
-import { W, H, ZONES, rng, begin, open } from './kit'
+// hands sweep three of them and two loose orbits precess. Along the bottom band a bone-white
+// cybersigil (thorned cells on a spine) lies on its side around the input box, one antler climbing
+// the thin left margin, its tail pointing at the instrument's base; a lean echo of it crosses the
+// top band. Both breathe. While busy, a light runs down the axis, the nodes light up tier by tier
+// as it passes and the base ripples.
+import { W, H, rng, begin, open } from './kit'
 
 type P = [number, number]
 type Tier = { cy: number; rings: number[] }
 
 const AX = 1236 // the diagram's axis, near the right edge so half of it sits off-canvas
 const K = 0.2 // ellipse squash (ry / rx)
-const RX0 = ZONES.right.x0 + 4 // nothing in the diagram reaches left of this
-const SB = ZONES.sidebar.x1
+const RX0 = 1064 // nothing in the diagram reaches left of this
 
 const INK = '#e8e8f0'
 const DIM = '#b9b9cc'
@@ -100,89 +101,101 @@ function thorn(p: P, angle: number, len: number, bend: number, w0: number): stri
   return ribbon(p, c, tip, t => w0 * Math.pow(1 - t, 1.25) + 0.4, 12)
 }
 
-function sigil(): { body: string; joints: string; holes: string } {
-  const r = rng(4417)
+// A sigil lying on its side: the head (crown joint) at the left, a ladder of joints running right,
+// top and bottom rails bowed outward, the tail at the right end. Built in screen space; the thorn
+// angles are the upright drawing's, turned a quarter to the left.
+type SigilOpts = {
+  seed: number
+  crown: P // the head joint; the body runs right from here
+  n: number // joints per rail
+  step: [number, number] // spacing between rungs
+  hh: [number, number] // half height of a cell
+  wave: number // the spine's gentle up-and-down
+  s: number // scale for bone widths, joints and thorn lengths
+  top: number // thorns stay below this y
+  bottom: number // and above this one
+  rungs: string // h: straight across, d / e: a diagonal to the next rung, -: open (cells merge)
+  head: (c: P, s: number) => string[]
+  tail: (t: P, s: number) => string[]
+}
+
+function sigil(o: SigilOpts): { body: string; joints: string; holes: string } {
+  const r = rng(o.seed)
+  const s = o.s
   const parts: string[] = []
   const joints: string[] = []
   const holes: string[] = []
 
-  // A winding ladder of joints: each rung pair bounds one stone-like cell.
-  const L: P[] = []
-  const R: P[] = []
-  const N = 10
-  let y = 262
-  for (let i = 0; i < N; i++) {
-    const cx = 126 + 34 * Math.sin(i * 1.3 + 0.4)
-    const hw = 40 + r() * 30
-    const tilt = (i % 2 ? 1 : -1) * (24 + r() * 36)
-    L.push([Math.max(30, cx - hw), y - tilt / 2])
-    R.push([Math.min(SB - 30, cx + hw), y + tilt / 2])
-    y += 72 + r() * 52
+  const T: P[] = []
+  const B: P[] = []
+  let x = o.crown[0] + 104 * s
+  for (let i = 0; i < o.n; i++) {
+    const cy = o.crown[1] + o.wave * Math.sin(i * 1.3 + 0.4)
+    const hh = o.hh[0] + r() * (o.hh[1] - o.hh[0])
+    const tilt = (i % 2 ? 1 : -1) * (24 + r() * 36) * s
+    T.push([x - tilt / 2, cy - hh])
+    B.push([x + tilt / 2, cy + hh])
+    x += o.step[0] + r() * (o.step[1] - o.step[0])
   }
-  const top: P = [134, 146]
-  const last = at(L, N - 1)
-  const lastR = at(R, N - 1)
-  const bot: P = [(last[0] + lastR[0]) / 2 - 8, Math.max(last[1], lastR[1]) + 84]
+  const lastT = at(T, o.n - 1)
+  const lastB = at(B, o.n - 1)
+  const end: P = [Math.max(lastT[0], lastB[0]) + 84 * s, (lastT[1] + lastB[1]) / 2 + 8 * s]
 
-  // Rails bow outward, rungs wobble; two rungs left out so cells merge into taller ones.
-  parts.push(bone(top, at(L, 0), 0.18, 26, 12))
-  parts.push(bone(top, at(R, 0), -0.18, 26, 12))
-  for (let i = 0; i < N - 1; i++) {
-    parts.push(bone(at(L, i), at(L, i + 1), 0.16 + r() * 0.12, 28, 11 + r() * 4))
-    parts.push(bone(at(R, i), at(R, i + 1), -(0.16 + r() * 0.12), 28, 11 + r() * 4))
+  // Rails bow outward, rungs wobble; open rungs let cells merge into longer ones.
+  parts.push(bone(o.crown, at(T, 0), -0.18, 26 * s, 12 * s))
+  parts.push(bone(o.crown, at(B, 0), 0.18, 26 * s, 12 * s))
+  for (let i = 0; i < o.n - 1; i++) {
+    parts.push(bone(at(T, i), at(T, i + 1), -(0.16 + r() * 0.12), 28 * s, (11 + r() * 4) * s))
+    parts.push(bone(at(B, i), at(B, i + 1), 0.16 + r() * 0.12, 28 * s, (11 + r() * 4) * s))
   }
-  // h: straight across, d / e: a diagonal down to the next level, -: open (cells merge)
-  const RUNGS = 'hhd-heh-dh'
-  for (let i = 0; i < N; i++) {
-    const k = RUNGS[i]
-    const w = 8 + r() * 4
+  for (let i = 0; i < o.n; i++) {
+    const k = o.rungs[i]
+    const w = (8 + r() * 4) * s
     const bow = (r() - 0.5) * 0.36
-    if (k === 'h') parts.push(bone(at(L, i), at(R, i), bow, 25, w))
-    else if (k === 'd' && i + 1 < N) parts.push(bone(at(L, i), at(R, i + 1), bow, 25, w))
-    else if (k === 'e' && i + 1 < N) parts.push(bone(at(R, i), at(L, i + 1), bow, 25, w))
+    if (k === 'h') parts.push(bone(at(T, i), at(B, i), bow, 25 * s, w))
+    else if (k === 'd' && i + 1 < o.n) parts.push(bone(at(T, i), at(B, i + 1), bow, 25 * s, w))
+    else if (k === 'e' && i + 1 < o.n) parts.push(bone(at(B, i), at(T, i + 1), bow, 25 * s, w))
   }
-  parts.push(bone(last, bot, 0.2, 26, 11))
-  parts.push(bone(lastR, bot, -0.2, 26, 11))
+  parts.push(bone(lastT, end, -0.2, 26 * s, 11 * s))
+  parts.push(bone(lastB, end, 0.2, 26 * s, 11 * s))
 
   // Joints: webbed lumps, some pierced by a small dark hole.
-  const all: P[] = [top, ...L, ...R, bot]
+  const all: P[] = [o.crown, ...T, ...B, end]
   all.forEach((p, i) => {
     const rot = Math.floor(r() * 180)
     joints.push(
-      `<ellipse cx="${f(p[0])}" cy="${f(p[1])}" rx="${16 + (i % 3) * 2}" ry="${11 + (i % 2) * 3}" transform="rotate(${rot} ${f(p[0])} ${f(p[1])})"/>`,
+      `<ellipse cx="${f(p[0])}" cy="${f(p[1])}" rx="${f((16 + (i % 3) * 2) * s)}" ry="${f((11 + (i % 2) * 3) * s)}" transform="rotate(${rot} ${f(p[0])} ${f(p[1])})"/>`,
     )
     if (i % 3 !== 1) {
-      const hx = p[0] + (r() - 0.5) * 10
-      const hy = p[1] + (r() - 0.5) * 8
-      holes.push(`<ellipse cx="${f(hx)}" cy="${f(hy)}" rx="${f(2.6 + r() * 3)}" ry="${f(1.8 + r() * 2)}" transform="rotate(${Math.floor(r() * 180)} ${f(hx)} ${f(hy)})"/>`)
+      const hx = p[0] + (r() - 0.5) * 10 * s
+      const hy = p[1] + (r() - 0.5) * 8 * s
+      holes.push(
+        `<ellipse cx="${f(hx)}" cy="${f(hy)}" rx="${f((2.6 + r() * 3) * s)}" ry="${f((1.8 + r() * 2) * s)}" transform="rotate(${Math.floor(r() * 180)} ${f(hx)} ${f(hy)})"/>`,
+      )
     }
   })
 
-  // Thorns: outward from every joint, mostly sweeping up, some hooked down, a few fins inward.
-  const spike = (p: P, s: number, i: number): void => {
-    const up = s < 0 ? 198 + r() * 42 : 342 - r() * 42
-    const room = s < 0 ? p[0] - 8 : SB - 6 - p[0]
-    const len = Math.min(room / Math.max(0.3, Math.abs(Math.cos((up * Math.PI) / 180))), 62 + r() * 80)
-    if (r() < 0.72) parts.push(thorn(p, up, len, s * (0.12 + r() * 0.2), 16 + r() * 8))
-    if (i % 2 === 1) {
-      const dn = s < 0 ? 148 - r() * 26 : 32 + r() * 26
-      parts.push(thorn(p, dn, 38 + r() * 36, -s * 0.2, 14))
-    }
-    if (i % 3 === 2) parts.push(thorn(p, s < 0 ? 24 + r() * 30 : 156 - r() * 30, 20 + r() * 10, s * 0.2, 11))
+  // Thorns: outward from every joint, mostly sweeping toward the head, some hooked back, a few
+  // fins inward. g = 1 on the top rail, -1 on the bottom one.
+  const fit = (p: P, g: number, deg: number, want: number): number => {
+    const room = g > 0 ? p[1] - o.top : o.bottom - p[1]
+    const v = Math.abs(Math.sin((deg * Math.PI) / 180))
+    return Math.max(6, Math.min(want, room / Math.max(0.3, v)))
   }
-  L.forEach((p, i) => spike(p, -1, i))
-  R.forEach((p, i) => spike(p, 1, i + 1))
+  const spike = (p: P, g: number, i: number): void => {
+    const up = (g < 0 ? 198 + r() * 42 : 342 - r() * 42) - 90
+    const len = fit(p, g, up, (62 + r() * 80) * s)
+    if (r() < 0.72) parts.push(thorn(p, up, len, g * (0.12 + r() * 0.2), (16 + r() * 8) * s))
+    if (i % 2 === 1) {
+      const dn = (g < 0 ? 148 - r() * 26 : 32 + r() * 26) - 90
+      parts.push(thorn(p, dn, fit(p, g, dn, (38 + r() * 36) * s), -g * 0.2, 14 * s))
+    }
+    if (i % 3 === 2) parts.push(thorn(p, (g < 0 ? 24 + r() * 30 : 156 - r() * 30) - 90, (20 + r() * 10) * s, g * 0.2, 11 * s))
+  }
+  B.forEach((p, i) => spike(p, -1, i))
+  T.forEach((p, i) => spike(p, 1, i + 1))
 
-  // The crown: two long antlers and a short side spur.
-  parts.push(thorn(top, 250, 126, -0.24, 24))
-  parts.push(thorn(top, 291, 112, 0.22, 21))
-  parts.push(thorn([top[0] - 8, top[1] + 10], 198, 74, -0.26, 15))
-
-  // The tail: one long spike curling down, with spurs.
-  parts.push(thorn(bot, 99, 1410 - bot[1] + 10, 0.1, 26))
-  parts.push(thorn([bot[0] - 3, bot[1] + 70], 150, 58, -0.3, 12))
-  parts.push(thorn(bot, 34, 66, -0.25, 15))
-
+  parts.push(...o.head(o.crown, s), ...o.tail(end, s))
   return { body: parts.join(''), joints: joints.join(''), holes: holes.join('') }
 }
 
@@ -197,7 +210,7 @@ export function sigilScene(isBusy: boolean, now: number): string {
   let n = 1
 
   const node = (p: P, tier: number, label: boolean): void => {
-    dots.push(`<circle cx="${f(p[0])}" cy="${f(p[1])}" r="3"/>`)
+    dots.push(`<circle cx="${f(p[0])}" cy="${f(p[1])}" r="3.6"/>`)
     at(tierDots, tier).push(`<circle cx="${f(p[0])}" cy="${f(p[1])}" r="7"/>`)
     if (!label) return
     const right = p[0] < 1214
@@ -242,7 +255,7 @@ export function sigilScene(isBusy: boolean, now: number): string {
     const y0 = a.cy + K * Math.sqrt(rxa * rxa - d * d)
     const y1 = b.cy - K * Math.sqrt(rxb * rxb - d * d)
     plumbs.push(`<path${r() < 0.55 ? ' class="ds"' : ''} d="M${f(x)} ${f(y0)}V${f(y1)}"/>`)
-    dots.push(`<circle cx="${f(x)}" cy="${f(y0)}" r="2.1"/><circle cx="${f(x)}" cy="${f(y1)}" r="2.1"/>`)
+    dots.push(`<circle cx="${f(x)}" cy="${f(y0)}" r="2.6"/><circle cx="${f(x)}" cy="${f(y1)}" r="2.6"/>`)
     at(tierDots, ib).push(`<circle cx="${f(x)}" cy="${f(y1)}" r="6"/>`)
   }
   for (let i = 1; i < TIERS.length - 1; i++) {
@@ -330,7 +343,55 @@ export function sigilScene(isBusy: boolean, now: number): string {
 <ellipse cx="${AX}" cy="${base.cy}" rx="40" ry="8" fill="none" stroke="${CYAN}" stroke-width="1.6"><animate attributeName="rx" values="40;170" dur="${PULSE}s" begin="${rip}" repeatCount="indefinite"/><animate attributeName="ry" values="8;34" dur="${PULSE}s" begin="${rip}" repeatCount="indefinite"/><animate attributeName="opacity" values=".9;0" dur="${PULSE}s" begin="${rip}" repeatCount="indefinite"/></ellipse>`
   }
 
-  const sg = sigil()
+  // The sigil along the bottom band, its cells straddling the input box; one antler climbs the
+  // left margin, the tail points at the instrument's base.
+  const sg = sigil({
+    seed: 4417,
+    crown: [276, 1334],
+    n: 7,
+    step: [86, 112],
+    hh: [36, 54],
+    wave: 9,
+    s: 0.78,
+    top: 1232,
+    bottom: 1440,
+    rungs: 'hd-hehh',
+    head: (c, s) => [
+      thorn([c[0] - 2, c[1] - 10], 268, 290, 0.05, 22 * s),
+      thorn([c[0] + 6, c[1] - 150], 292, 46, 0.2, 11 * s),
+      thorn([c[0] + 4, c[1] - 220], 250, 34, -0.2, 9 * s),
+      thorn(c, 236, 120 * s, -0.24, 18 * s),
+      thorn([c[0] - 4, c[1] + 10], 128, 74 * s, 0.26, 15 * s),
+    ],
+    tail: (t, s) => [
+      thorn(t, -8, 200, 0.08, 26 * s),
+      thorn([t[0] + 70 * s, t[1] + 3 * s], 60, 58 * s, -0.3, 12 * s),
+      thorn(t, -56, 66 * s, -0.25, 15 * s),
+    ],
+  })
+  // Its lean echo across the top band, between the chat title and the header icons.
+  const sg2 = sigil({
+    seed: 3109,
+    crown: [572, 27],
+    n: 5,
+    step: [70, 88],
+    hh: [12, 16],
+    wave: 3,
+    s: 0.42,
+    top: -30,
+    bottom: 54,
+    rungs: 'hdheh',
+    head: (c, s) => [
+      thorn(c, 160, 126 * s, -0.24, 24 * s),
+      thorn(c, 201, 112 * s, 0.22, 21 * s),
+      thorn([c[0] + 10 * s, c[1] + 8 * s], 108, 74 * s, -0.26, 15 * s),
+    ],
+    tail: (t, s) => [
+      thorn(t, 9, 70, 0.1, 26 * s),
+      thorn([t[0] + 70 * s, t[1] + 3 * s], 60, 58 * s, -0.3, 12 * s),
+      thorn(t, -56, 66 * s, -0.25, 15 * s),
+    ],
+  })
   const breathe = 10
 
   return `${open()}
@@ -344,18 +405,18 @@ export function sigilScene(isBusy: boolean, now: number): string {
 <linearGradient id="pl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${CYAN}" stop-opacity="0"/><stop offset=".8" stop-color="#e6fffd" stop-opacity="1"/><stop offset="1" stop-color="${CYAN}" stop-opacity="0"/></linearGradient>
 </defs>
 <style>
-.ln{fill:none;stroke:${INK};stroke-width:1.9;stroke-linecap:round}
-.ln .ds{stroke-dasharray:5 6;stroke:${DIM};stroke-width:1.3}
-.pl{fill:none;stroke:${DIM};stroke-width:1.3;opacity:.9}
+.ln{fill:none;stroke:${INK};stroke-width:2.4;stroke-linecap:round}
+.ln .ds{stroke-dasharray:5 6;stroke:${DIM};stroke-width:1.6}
+.pl{fill:none;stroke:${DIM};stroke-width:1.6;opacity:.9}
 .pl .ds{stroke-dasharray:4 5}
 .nm{font:13px ui-monospace,Menlo,monospace;fill:${INK};opacity:.82}
-.pr{fill:none;stroke:${DIM};stroke-width:1.4;stroke-dasharray:3 7;opacity:.85;animation-name:prec;animation-timing-function:ease-in-out;animation-iteration-count:infinite;animation-direction:alternate}
+.pr{fill:none;stroke:${DIM};stroke-width:1.8;stroke-dasharray:3 7;opacity:.85;animation-name:prec;animation-timing-function:ease-in-out;animation-iteration-count:infinite;animation-direction:alternate}
 @keyframes prec{from{transform:rotate(-7deg) scaleY(.8)}to{transform:rotate(6deg) scaleY(1.3)}}
 .sg{animation:br ${breathe}s ease-in-out infinite;animation-delay:${begin(now, breathe)}}
 @keyframes br{0%,100%{opacity:${isBusy ? 0.72 : 0.64}}50%{opacity:${isBusy ? 0.95 : 0.8}}}
 .au{animation:br2 ${breathe}s ease-in-out infinite;animation-delay:${begin(now, breathe)}}
 @keyframes br2{0%,100%{opacity:${isBusy ? 0.7 : 0.45}}50%{opacity:${isBusy ? 1 : 0.7}}}
-.hd line{stroke:${INK};stroke-width:1.15;opacity:${isBusy ? 0.9 : 0.6}}
+.hd line{stroke:${INK};stroke-width:1.5;opacity:${isBusy ? 0.9 : 0.6}}
 .hd .tip{fill:${isBusy ? CYAN : INK}}
 .gl{opacity:.1;animation:gl ${PULSE}s linear infinite}
 @keyframes gl{0%{opacity:.1}12%{opacity:.85}45%{opacity:.18}100%{opacity:.1}}
@@ -363,10 +424,10 @@ export function sigilScene(isBusy: boolean, now: number): string {
 <rect width="${W}" height="${H}" fill="${BG}"/>
 <rect width="${W}" height="${H}" filter="url(#cl)" mask="url(#fm)" opacity=".34"/>
 <ellipse cx="${AX - 20}" cy="${base.cy + 26}" rx="300" ry="96" fill="url(#pool)"/>
-<ellipse cx="128" cy="740" rx="170" ry="640" fill="url(#aura)" class="au"/>
-<g fill="#ecebf4" class="sg"><path d="${sg.body}"/>${sg.joints}</g>
-<g fill="${BG}" opacity=".85">${sg.holes}</g>
-<path d="M${AX} ${at(TIERS, 0).cy}V${base.cy}" stroke="${INK}" stroke-width="2.4"/>
+<ellipse cx="640" cy="1334" rx="470" ry="130" fill="url(#aura)" class="au"/>
+<g fill="#ecebf4" class="sg"><path d="${sg.body}"/>${sg.joints}<path d="${sg2.body}"/>${sg2.joints}</g>
+<g fill="${BG}" opacity=".85">${sg.holes}${sg2.holes}</g>
+<path d="M${AX} ${at(TIERS, 0).cy}V${base.cy}" stroke="${INK}" stroke-width="3"/>
 <path d="M${AX - 7} ${at(TIERS, 1).cy + 14}V${base.cy - 14}" stroke="${DIM}" stroke-width="1" stroke-dasharray="6 7" opacity=".7"/>
 <g class="ln">${lines.join('')}${rays}</g>
 <g class="pl">${plumbs.join('')}</g>

@@ -34,10 +34,10 @@ Click a picture to see it move.
 |---|---|---|---|
 | [<img src="docs/stills/moths.jpg" width="220">](docs/motion/moths.gif) | `moths` | Glowing blue butterflies drift and flap at the edges, a crystal curtain sparkles, a stage beam slants in from the top. | astrology, tarot, moon, dream |
 | [<img src="docs/stills/swirl.jpg" width="220">](docs/motion/swirl.gif) | `swirl` | Neon ribbons in cyan, violet, magenta, orange and lime meet in a glowing knot on pitch black. | (pick it with `/look swirl`) |
-| [<img src="docs/stills/halftone.jpg" width="220">](docs/motion/halftone.gif) | `halftone` | Electric purple glow behind a fine dot screen, with a dark shadow sweeping through the middle. | brand, logo, client, proposal |
-| [<img src="docs/stills/smoke.jpg" width="220">](docs/motion/smoke.gif) | `smoke` | A purple smoke ribbon rising up the right edge, a glow pooling under the sidebar. | video, reel, social post, thumbnail |
+| [<img src="docs/stills/halftone.jpg" width="220">](docs/motion/halftone.gif) | `halftone` | Electric purple glow behind a fine dot screen down the right edge, with a dark shadow drifting through it. | brand, logo, client, proposal |
+| [<img src="docs/stills/smoke.jpg" width="220">](docs/motion/smoke.gif) | `smoke` | A purple smoke ribbon rising up the right edge from smoke pooled along the bottom. | video, reel, social post, thumbnail |
 | [<img src="docs/stills/clusters.jpg" width="220">](docs/motion/clusters.gif) | `clusters` | A graph view: colored node clusters joined by fine grey lines on black. Pulses run along the lines while Claude works. | research, audit, dataset, report |
-| [<img src="docs/stills/sigil.jpg" width="220">](docs/motion/sigil.gif) | `sigil` | A tall white sigil under the sidebar, a diagram of stacked rings cut off by the right edge, film grain. | philosophy, essay, myth, occult |
+| [<img src="docs/stills/sigil.jpg" width="220">](docs/motion/sigil.gif) | `sigil` | A white thorned sigil wrapped around the message box, a diagram of stacked rings cut off by the right edge, film grain. | philosophy, essay, myth, occult |
 | [<img src="docs/stills/network.jpg" width="220">](docs/motion/network.gif) | `network` | A note map: soft hull shapes, green starburst hubs and iridescent squares linked by white curves. | wiki, notes, obsidian, second brain |
 | [<img src="docs/stills/glass.jpg" width="220">](docs/motion/glass.gif) | `glass` | Glass bricks over a purple glow, soft circles drifting with yellow, blue and violet trails. | habit, music, journal, side project |
 | [<img src="docs/stills/pixel.jpg" width="220">](docs/motion/pixel.gif) | `pixel` | Pixel blocks packed with letters, a red checker, purple ink sweeps on dark graph paper. | game, arduino, firmware, pixel art |
@@ -68,7 +68,7 @@ Everything lives in `hooks/looks.ts`. For each look you can:
 - add your own words to `words`, so a chat about that topic picks it;
 - change the app colors, how much the panels blur over the art, and the reply card colors.
 
-Each scene is one file in `hooks/scenes/`, a function that returns an SVG. Art sits under the sidebar, in the strip to the right of the chat and along the top and bottom edges, so the middle of the window stays quiet for reading. The scenes are drawn for a tall window, about 1250 × 1410, with the sidebar open; on a wider window they're cropped at the top and bottom.
+Each scene is one file in `hooks/scenes/`, a function that returns an SVG. The app draws the sidebar almost solid, so the art sits in a column on the right, behind the ragged ends of lines, and in bands along the top and bottom. The middle of the window stays quiet for reading. The scenes are drawn for a tall window, about 1250 × 1410, with the sidebar open; on a wider window they're cropped at the top and bottom.
 
 Made by Claudia Vaduvescu with Claude Code.
 

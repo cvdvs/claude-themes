@@ -1,18 +1,29 @@
 // Honeycomb: a honeycomb of fine hexagonal cells on deep navy, colored dots at their corners, a few
-// cells filled with rings of dots, and pale curved lines fanning out of a handful of hubs. The pastel
-// color walks around the window: butter at the bottom left, peach and pink up the sidebar, violet
-// across the top, cyan and mint down the right. The chat column only gets a soft navy glow.
+// cells filled with rings of dots, and pale curved lines fanning out of a handful of hubs. The comb
+// fills a column down the right of the window, where reply lines end, and runs along the top and
+// the bottom as one row each; a fine thread of dots runs down the narrow margin left of the replies.
+// The pastel color walks around that frame: butter at the bottom left, peach and pink up the thread,
+// violet across the top, cyan and mint down the right. The sidebar only gets a faint glow, the chat
+// text a soft navy one.
 // Motion: some lines draw themselves in and fade (stroke-dashoffset); corner dots and hubs pulse.
 
-import { W, H, ZONES, rng, begin, open } from './kit'
+import { W, H, rng, begin, open } from './kit'
 
 type Cell = { x: number; y: number; kind: number; hex: string; s: number }
 type Dot = { x: number; y: number; hex: string }
 type Fan = { hub: Dot; curves: string[] }
 
-const T = ZONES.text
+// Where the reply text sits in the app window: nothing but a glow goes here. Left of it is a thin
+// margin (x 256 to 298) and the sidebar, which is drawn almost solid.
+const T = { x0: 298, x1: 990, y0: 100, y1: 1236 }
+const SIDE = 258
+const THREAD = 274
 const R = 36
 const HW = R * Math.cos(Math.PI / 6)
+// Lattice steps: rows land at y 42 (the top band), 1277 (between the last reply and the input box)
+// and 1372 (under it).
+const ROW = 95
+const STEP = 110
 
 // Pastel stops around the frame, by position s in [0, 1): bottom left, up the left, across the top,
 // down the right, back along the bottom.
@@ -68,15 +79,18 @@ const G = (() => {
   const rand = rng(2810)
   const jit = (s: number) => (rand() - 0.5) * 2 * s
 
-  // The lattice: rows 92 apart, cells 104 apart, odd rows shifted half a step. A cell is kept only if
-  // its whole box stays clear of the text zone; some are dropped for air, like the reference.
+  // The lattice: rows 95 apart, cells 110 apart, odd rows shifted half a step. A cell is kept only if
+  // its whole box stays clear of the text zone and the sidebar, and the top row starts right of the
+  // chat title; some are dropped for air, like the reference.
   const cells: Cell[] = []
-  for (let k = 0; k <= 15; k++) {
-    const y = 50 + k * 92
-    for (let x = k % 2 ? 108 : 56; x < W + HW; x += 104) {
-      if (x + HW + 4 > T.x0 - 6 && x - HW - 4 < T.x1 + 6 && y + R + 4 > T.y0 - 6 && y - R - 4 < T.y1 + 6) continue
-      if (k === 15 && rand() < 0.5) continue
-      if (rand() < 0.2) continue
+  for (let k = 0; k <= 14; k++) {
+    const y = 42 + k * ROW
+    for (let x = k % 2 ? 145 : 90; x < W + HW; x += STEP) {
+      if (x + HW + 2 > T.x0 && x - HW - 2 < T.x1 && y + R + 2 > T.y0 && y - R - 2 < T.y1) continue
+      if (x - HW < SIDE || (k === 0 && x < 490)) continue
+      // The right column and the two band rows keep most of their cells; the row under the input box
+      // thins out.
+      if (rand() < (k === 0 ? 0 : k === 14 ? 0.3 : 0.08)) continue
       const p = rand()
       const kind = p < 0.17 ? 1 : p < 0.27 ? 2 : p < 0.33 ? 3 : 0
       const s = frameS(x, y) + jit(0.045)
@@ -123,6 +137,20 @@ const G = (() => {
     own.forEach(([x, y]) => dots.push({ x, y, hex: c.hex }))
   })
 
+  // The thread: a fine line down the margin with a small dot level with each row, turning a rounded
+  // corner at the top into the first cell of the top row.
+  const threadY = Array.from({ length: 14 }, (_, k) => 42 + (k + 1) * ROW)
+  const first = threadY[0] ?? 137
+  const corner = `M${THREAD} ${first}V94Q${THREAD} 60 ${THREAD + 34} 60H${n1(490 + 40 - HW)}`
+  cellMarks.push(`<path d="${corner}" stroke="${hue(frameS(380, 60))}" fill="none"/>`)
+  threadY.forEach((y, k) => {
+    const hex = hue(frameS(THREAD, y))
+    const next = threadY[k + 1]
+    if (next !== undefined) cellMarks.push(`<path d="M${THREAD} ${y}V${next}" stroke="${mix(hex, hue(frameS(THREAD, next)), 0.5)}"/>`)
+    cellMarks.push(`<path d="M${THREAD} ${y}h0" stroke="${hex}" stroke-width="11" stroke-opacity=".14"/><path d="M${THREAD} ${y}h0" stroke="${hex}" stroke-width="5" stroke-opacity="1"/>`)
+    dots.push({ x: THREAD, y, hex })
+  })
+
   // Curves must stay out of the text zone along their whole length.
   const quadClear = (a: Dot, cx: number, cy: number, b: Dot): boolean => {
     for (let i = 0; i <= 40; i++) {
@@ -130,13 +158,13 @@ const G = (() => {
       const u = 1 - t
       const x = u * u * a.x + 2 * u * t * cx + t * t * b.x
       const y = u * u * a.y + 2 * u * t * cy + t * t * b.y
-      if (inText(x, y, 12) || x < -60 || x > W + 60 || y < -60 || y > H + 60) return false
+      if (inText(x, y, 12) || x < SIDE || x > W + 60 || y < -60 || y > H + 60) return false
     }
     return true
   }
 
   // Hubs: a corner dot near each of these spots, with lines fanning out to other corner dots.
-  const spots: Array<[number, number]> = [[90, 40], [170, 420], [100, 860], [190, 1250], [620, 30], [1130, 300], [1180, 820], [1120, 1290]]
+  const spots: Array<[number, number]> = [[640, 70], [930, 70], [1135, 250], [1190, 640], [1080, 960], [1190, 1300], [700, 1300], [380, 1372]]
   const fans: Fan[] = []
   spots.forEach(([sx, sy]) => {
     const hub = dots.slice().sort((p, q) => Math.hypot(p.x - sx, p.y - sy) - Math.hypot(q.x - sx, q.y - sy))[0]
@@ -172,7 +200,7 @@ const G = (() => {
     if (pulsing.length >= 19) break
     if (fans.some(f => f.hub === d)) continue
     // Not on the seam between the sidebar and the chat panel, where a ring would show unfrosted.
-    if (Math.abs(d.x - T.x0 + 6) < 20) continue
+    if (d.x - SIDE < 14) continue
     if (pulsing.some(p => Math.hypot(p.x - d.x, p.y - d.y) < 110)) continue
     pulsing.push(d)
   }
@@ -222,6 +250,8 @@ export function honeycombScene(isBusy: boolean, now: number): string {
 <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a1029"/><stop offset="1" stop-color="#060a1b"/></linearGradient>
 <radialGradient id="amb" gradientUnits="userSpaceOnUse" cx="${(T.x0 + T.x1) / 2}" cy="${(T.y0 + T.y1) / 2}" r="640"><stop offset="0" stop-color="#121a3a" stop-opacity=".75"/><stop offset="1" stop-color="#121a3a" stop-opacity="0"/></radialGradient>
 <radialGradient id="hb"><stop offset="0" stop-color="#ffffff" stop-opacity=".35"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="g1"><stop offset="0" stop-color="#f79bc0" stop-opacity=".16"/><stop offset="1" stop-color="#f79bc0" stop-opacity="0"/></radialGradient>
+<radialGradient id="g2"><stop offset="0" stop-color="#f6e27f" stop-opacity=".13"/><stop offset="1" stop-color="#f6e27f" stop-opacity="0"/></radialGradient>
 </defs>
 <style>.ln{stroke-dasharray:1 1;stroke-dashoffset:1;opacity:0}.pl{opacity:0;transform-box:fill-box;transform-origin:center}
 @keyframes dr{0%{stroke-dashoffset:1;opacity:0}8%{opacity:.85}45%{stroke-dashoffset:0;opacity:.85}72%{stroke-dashoffset:0;opacity:.6}90%,100%{stroke-dashoffset:0;opacity:0}}
@@ -230,7 +260,8 @@ export function honeycombScene(isBusy: boolean, now: number): string {
 @keyframes pb{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:1;transform:scale(1.55)}}</style>
 <rect width="${W}" height="${H}" fill="url(#bg)"/>
 <rect width="${W}" height="${H}" fill="url(#amb)"/>
-<g stroke-width="1.1" stroke-opacity=".58" stroke-linecap="round">${G.cells}</g>
+<circle cx="110" cy="470" r="300" fill="url(#g1)"/><circle cx="120" cy="1150" r="280" fill="url(#g2)"/>
+<g stroke-width="1.25" stroke-opacity=".64" stroke-linecap="round">${G.cells}</g>
 <g fill="none" stroke-width="1.1" stroke-opacity=".36" stroke-linecap="round">${statics}</g>
 <g fill="none" stroke-width="1.4" stroke-linecap="round">${lines}</g>
 ${pulses}${hubs}</svg>`

@@ -1,16 +1,19 @@
 // Shared pieces for every scene. The canvas matches a tall desktop window (about 1250 × 1410,
-// sidebar on the left, chat column in the middle). Art lives at the edges; the text column stays clear.
+// sidebar on the left, chat column in the middle). Art lives in the right column and the top and bottom bands; the text column stays clear.
 
 export const W = 1250
 export const H = 1410
 
 export const ZONES = {
-  // Under the sidebar panel (frosted by it).
+  // Under the sidebar: the app draws it almost solid, so only a faint glow belongs here.
   sidebar: { x0: 0, x1: 255 },
-  // The chat column and input box: keep art out of here, ambient glow only.
-  text: { x0: 262, x1: 1060, y0: 150, y1: 1320 },
-  // The free strip on the right of the chat column.
-  right: { x0: 1060, x1: 1250 },
+  // Behind the reply text: dim ambient color only.
+  text: { x0: 310, x1: 1000, y0: 60, y1: 1230 },
+  // The main stage: the ragged ends of lines and the margin right of the reply cards.
+  right: { x0: 1000, x1: 1250 },
+  // Bands that frame the chat: the header, and around and below the message box.
+  top: { y0: 0, y1: 120 },
+  bottom: { y0: 1230, y1: 1410 },
 } as const
 
 // Seeded random numbers, so a scene looks the same on every redraw.

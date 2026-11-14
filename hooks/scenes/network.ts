@@ -1,14 +1,23 @@
 // Network: a note map on near-black. Lumpy hull blobs outline clusters, green
 // starburst hubs fan fine colored lines out to their notes, and a few iridescent thumbnails are
-// linked by white curves, over a faint dark botanical silhouette. Everything sits under the sidebar,
-// in the right strip and along the top and bottom edges; the chat column only gets dim glow.
+// linked by white curves, over a faint dark botanical silhouette. The map is a column down the right
+// edge, framed by a band along the top (between the chat title and the icons) and a band along the
+// bottom (around the input box), with one thin thread of notes down the margin left of the replies.
+// The sidebar and the reply text only get dim glow.
 
-import { W, H, ZONES, rng, begin, open } from './kit'
+import { W, H, rng, begin, open } from './kit'
 
 type P = [number, number]
 
 const n = (v: number): string => (Math.round(v * 10) / 10).toString()
 const at = <T>(a: readonly T[], i: number): T => a[Math.max(0, Math.min(i, a.length - 1))]!
+
+// The app window: the sidebar is drawn almost solid up to x 256, reply text runs from x 310 to
+// about x 1000 between the header (y 0–50) and the bottom band (y 1236 down, input box included).
+const SIDE = 256
+const TEXT = { x0: 298, x1: 1000, y0: 58, y1: 1236 }
+// The input box, where the fine lines would sit behind the placeholder text.
+const INPUT = { x0: 270, x1: 1000, y0: 1316, y1: 1364 }
 
 // A smooth curve through points (Catmull-Rom turned into cubic Béziers).
 function smooth(pts: readonly P[]): string {
@@ -36,40 +45,39 @@ const GREEN = { line: '#6fe07a', fill: '#183d26' }
 const VIOLET = { line: '#b07bff', fill: '#33215f' }
 
 const HULLS: Hull[] = [
-  // sidebar, upper: a thin tube hugging the left edge
-  { arms: [[[14, 300], [44, 350], [28, 420], [60, 486], [38, 560]], [[28, 420], [-4, 452]]], w: 8, ...BLUE },
-  // sidebar, lower cluster
-  { arms: [[[40, 928], [90, 956], [110, 1006], [160, 1030], [198, 1076]], [[110, 1006], [76, 1040], [88, 1074]]], w: 11, ...PINK },
-  { arms: [[[22, 1086], [68, 1112], [56, 1170], [106, 1200], [168, 1190], [214, 1238]], [[106, 1200], [122, 1250]], [[168, 1190], [204, 1150]]], w: 13, ...BLUE },
-  { arms: [[[118, 1284], [150, 1318], [198, 1306], [230, 1350]], [[198, 1306], [238, 1288]]], w: 9, ...GREEN },
-  { arms: [[[16, 1296], [52, 1330], [38, 1374]]], w: 10, ...VIOLET },
-  // top edge, between the title and the icons
-  { arms: [[[590, 26], [640, 46], [700, 34], [760, 52]], [[700, 34], [728, 8]]], w: 8, ...VIOLET },
-  // bottom edge, under the input box
+  // top band, between the chat title and the icons
+  { arms: [[[690, 22], [740, 40], [800, 24], [858, 42]], [[800, 24], [826, 6]]], w: 8, ...VIOLET },
+  // right column, top to bottom
+  { arms: [[[1128, 196], [1154, 232], [1140, 274], [1172, 306]], [[1154, 232], [1186, 214]]], w: 9, ...VIOLET },
+  { arms: [[[1252, 560], [1222, 596], [1240, 642]]], w: 9, ...GREEN },
+  { arms: [[[1018, 760], [1050, 792], [1040, 836], [1074, 866]], [[1050, 792], [1084, 770]]], w: 10, ...PINK },
+  { arms: [[[1160, 920], [1196, 946], [1180, 990], [1226, 1012], [1256, 1000]]], w: 11, ...BLUE },
+  // the main cluster, where the column meets the bottom band
+  { arms: [[[1052, 1212], [1098, 1236], [1146, 1220], [1186, 1258], [1254, 1262]], [[1146, 1220], [1158, 1178]], [[1098, 1236], [1090, 1282]]], w: 12, ...PINK },
+  { arms: [[[1090, 1388], [1138, 1368], [1186, 1396], [1238, 1380]], [[1186, 1396], [1206, 1420]]], w: 13, ...BLUE },
+  // bottom band, around the input box
+  { arms: [[[556, 1262], [606, 1282], [656, 1266], [700, 1290]], [[606, 1282], [618, 1306]]], w: 9, ...GREEN },
   { arms: [[[330, 1398], [390, 1388], [450, 1400], [520, 1390]]], w: 8, ...PINK },
-  // right strip
-  { arms: [[[1086, 214], [1112, 250], [1100, 292], [1132, 322]]], w: 9, ...VIOLET },
-  { arms: [[[1250, 690], [1222, 726], [1238, 772]]], w: 9, ...GREEN },
-  { arms: [[[1088, 1176], [1130, 1206], [1172, 1196], [1204, 1236], [1254, 1246]], [[1172, 1196], [1182, 1150]]], w: 11, ...PINK },
-  { arms: [[[1096, 1292], [1140, 1270], [1186, 1300], [1234, 1288]]], w: 13, ...BLUE },
+  { arms: [[[900, 1396], [950, 1384], [1004, 1400]]], w: 8, ...VIOLET },
+  // the thin thread in the left margin
+  { arms: [[[270, 420], [282, 468], [268, 518], [280, 566]]], w: 6, ...BLUE },
+  { arms: [[[282, 944], [268, 994], [280, 1050]]], w: 6, ...PINK },
 ]
 
 // Starburst hubs. Big ones fan out to many notes.
 type Star = { x: number; y: number; r: number; k: number; big?: boolean }
 const STARS: Star[] = [
-  { x: 24, y: 236, r: 16, k: 11, big: true },
-  { x: 214, y: 640, r: 12, k: 9 },
-  { x: 222, y: 948, r: 20, k: 12, big: true },
-  { x: 34, y: 1238, r: 14, k: 10 },
-  { x: 190, y: 1140, r: 11, k: 9 },
-  { x: 124, y: 1420, r: 28, k: 13, big: true },
-  { x: 846, y: 34, r: 13, k: 10 },
-  { x: 610, y: 1406, r: 18, k: 11 },
   { x: 1236, y: 300, r: 23, k: 12, big: true },
+  { x: 1032, y: 470, r: 12, k: 9 },
   { x: 1244, y: 720, r: 14, k: 10 },
-  { x: 1080, y: 1240, r: 12, k: 9 },
-  { x: 1222, y: 1166, r: 16, k: 10, big: true },
-  { x: 1244, y: 1404, r: 20, k: 11 },
+  { x: 1238, y: 1084, r: 19, k: 11, big: true },
+  { x: 1046, y: 1134, r: 11, k: 9 },
+  { x: 1240, y: 1402, r: 22, k: 12, big: true },
+  { x: 940, y: 28, r: 14, k: 10 },
+  { x: 612, y: 1404, r: 18, k: 11 },
+  { x: 762, y: 1252, r: 12, k: 9 },
+  { x: 418, y: 1268, r: 15, k: 10, big: true },
+  { x: 276, y: 66, r: 9, k: 8 },
 ]
 
 function starPath(r: number, k: number, seed: number): string {
@@ -83,31 +91,41 @@ function starPath(r: number, k: number, seed: number): string {
   return `M${pts.join('L')}Z`
 }
 
+// The thread of notes down the left margin, from the top star to the bottom-left thumbnail.
+const THREAD: P[] = [[276, 66], [280, 150], [272, 260], [278, 380], [274, 520], [282, 660], [270, 800], [278, 940], [272, 1080], [284, 1190], [300, 1284]]
+
 // Notes that sit on no hull, for the fans to reach.
 const LOOSE: P[] = [
-  [1092, 150], [1130, 196], [1150, 372], [1084, 520], [1166, 500], [1232, 470], [1090, 640],
-  [1236, 960], [1086, 900], [1240, 1060], [1100, 1100],
-  [140, 330], [96, 270], [150, 560], [120, 760], [70, 690], [236, 1010], [230, 880], [176, 820],
-  [700, 70], [920, 58], [980, 24], [470, 1376], [700, 1394], [760, 1378],
+  // right column
+  [1062, 150], [1120, 168], [1150, 372], [1040, 556], [1166, 540], [1232, 420], [1072, 612],
+  [1238, 960], [1080, 906], [1240, 1180], [1110, 1100], [1026, 1006], [1170, 760], [1020, 330],
+  // top band
+  [660, 48], [880, 52], [990, 14], [760, 8], [1010, 48],
+  // bottom band
+  [470, 1376], [700, 1394], [780, 1380], [540, 1250], [680, 1244], [960, 1262], [1010, 1302],
+  [372, 1250], [840, 1400],
+  // margin thread
+  ...THREAD.slice(1, -1),
 ]
 
 // Ringed notes, like flagged pages.
 const RINGS: Array<[number, number, string]> = [
-  [125, 880, '#ff6a7a'], [236, 1010, '#ffa24f'], [1166, 500, '#b07bff'], [1232, 470, '#ff5fc1'],
-  [62, 640, '#ffb067'], [1086, 900, '#ff6a7a'], [920, 58, '#4fd6d0'],
+  [1150, 372, '#ff6a7a'], [1166, 540, '#b07bff'], [1232, 420, '#ff5fc1'], [1080, 906, '#ff6a7a'],
+  [880, 52, '#4fd6d0'], [700, 1394, '#ffa24f'], [278, 380, '#ffb067'], [270, 800, '#4fd6d0'],
 ]
 
 const HULL_NODES: P[] = HULLS.flatMap(h => h.arms.flatMap(a => a.slice(a === h.arms[0] ? 0 : 1)))
 
 const LINE_COLORS = ['#ff5fc1', '#6f8dff', '#4fd6d0', '#ffb067', '#7be06a', '#b48cff', '#ff8f6b']
 
-// A segment is allowed only if it never enters the text column.
+// A segment is allowed only if it stays out of the sidebar and out from behind the text.
 function clear(a: P, b: P): boolean {
-  const z = ZONES.text
   for (let t = 0; t <= 1; t += 0.02) {
     const x = a[0] + (b[0] - a[0]) * t
     const y = a[1] + (b[1] - a[1]) * t
-    if (x > z.x0 - 4 && x < z.x1 + 4 && y > z.y0 - 4 && y < z.y1 + 4) return false
+    if (x < SIDE + 6) return false
+    if (x > TEXT.x0 - 4 && x < TEXT.x1 + 4 && y > TEXT.y0 - 4 && y < TEXT.y1 + 4) return false
+    if (x > INPUT.x0 && x < INPUT.x1 && y > INPUT.y0 && y < INPUT.y1) return false
   }
   return true
 }
@@ -138,18 +156,19 @@ const FANS: Seg[] = (() => {
 
 // ---------------------------------------------------------------- the thumbnails
 
-// Iridescent thumbnails: center, size, variant.
+// Iridescent thumbnails: center, size, variant. A zigzag down the right column, one in each band.
 type Thumb = { x: number; y: number; s: number; v: number }
 const THUMBS: Thumb[] = [
-  { x: 206, y: 152, s: 46, v: 0 },
-  { x: 74, y: 846, s: 42, v: 1 },
-  { x: 150, y: 1112, s: 48, v: 2 },
-  { x: 1184, y: 92, s: 58, v: 3 },
-  { x: 1108, y: 432, s: 44, v: 1 },
-  { x: 1198, y: 604, s: 50, v: 0 },
-  { x: 1120, y: 762, s: 56, v: 2 },
-  { x: 1210, y: 856, s: 42, v: 3 },
-  { x: 1150, y: 990, s: 48, v: 1 },
+  { x: 1192, y: 104, s: 56, v: 3 },
+  { x: 1088, y: 300, s: 44, v: 1 },
+  { x: 1206, y: 470, s: 50, v: 0 },
+  { x: 1100, y: 664, s: 54, v: 2 },
+  { x: 1214, y: 836, s: 44, v: 3 },
+  { x: 1092, y: 1004, s: 48, v: 1 },
+  { x: 1200, y: 1160, s: 52, v: 0 },
+  { x: 862, y: 1284, s: 40, v: 2 },
+  { x: 604, y: 28, s: 36, v: 1 },
+  { x: 300, y: 1284, s: 36, v: 3 },
 ]
 const thumb = (i: number): Thumb => at(THUMBS, i)
 
@@ -162,16 +181,17 @@ function mk(i: number, j: number, bend = 0.55, sway = 0): Link {
   return { a: i, b: j, c1: [a.x + sway, a.y + k], c2: [b.x - sway, b.y - k] }
 }
 const LINKS: Link[] = [
-  { a: 0, b: 3, c1: [420, 34], c2: [880, 30] }, // across the top edge, sidebar to right strip
-  mk(0, 1, 0.5, -60),
-  mk(1, 2, 0.6, 40),
-  mk(3, 4, 0.62, -30),
-  mk(3, 6, 0.58, -70),
-  mk(4, 5, 0.6),
-  mk(4, 8, 0.5, 30),
-  mk(5, 7, 0.7),
-  mk(6, 7, 0.4),
-  mk(6, 8, 0.6),
+  { a: 8, b: 0, c1: [800, 50], c2: [1070, 26] }, // along the top band into the column
+  mk(0, 1, 0.6, -40),
+  mk(1, 2, 0.6, 30),
+  mk(2, 3, 0.58, -30),
+  mk(3, 4, 0.6, 30),
+  mk(4, 5, 0.6, -30),
+  mk(5, 6, 0.55, 30),
+  { a: 6, b: 7, c1: [1196, 1262], c2: [990, 1302] }, // out of the column into the bottom band
+  { a: 7, b: 9, c1: [700, 1252], c2: [450, 1310] }, // along the bottom band to the margin
+  mk(1, 3, 0.5, -60),
+  mk(2, 4, 0.5, 40),
 ]
 function linkD(l: Link, move = true): string {
   const a = thumb(l.a)
@@ -179,8 +199,11 @@ function linkD(l: Link, move = true): string {
   return `${move ? `M${n(a.x)} ${n(a.y)}` : ''}C${n(l.c1[0])} ${n(l.c1[1])} ${n(l.c2[0])} ${n(l.c2[1])} ${n(b.x)} ${n(b.y)}`
 }
 // The busy dots ride chains of links end to end.
-const ROUTES: number[][] = [[3, 5, 7], [0, 4, 9], [1, 2]]
+const ROUTES: number[][] = [[0, 1, 2, 3], [4, 5, 6, 7, 8], [10, 5, 6]]
 const routeD = (ids: number[]): string => ids.map((id, i) => linkD(at(LINKS, id), i === 0)).join('')
+
+// The thread is drawn upward, from the bottom-left thumbnail to the star at the top of the margin.
+const THREAD_D = smooth([...THREAD].reverse())
 
 // The marbled inside of a thumbnail (thermal-map style), drawn once in a 100 × 100 box.
 const MARBLE = `<g id="wk-m">
@@ -220,11 +243,13 @@ function sprig(stem: P[], leaves: number, size: number, seed: number): string {
 }
 
 const SILHOUETTE = [
+  // down the right column
   sprig([[1262, 150], [1210, 330], [1236, 520], [1150, 720], [1190, 930], [1098, 1140], [1130, 1330]], 26, 54, 7),
   sprig([[1262, 640], [1200, 760], [1226, 900], [1170, 1040]], 10, 42, 8),
   sprig([[1076, 230], [1120, 380], [1090, 520]], 7, 34, 9),
-  sprig([[-10, 700], [60, 820], [30, 980], [110, 1150], [70, 1330], [140, 1420]], 20, 48, 10),
-  sprig([[250, 760], [190, 880], [230, 1000]], 7, 34, 11),
+  // along the bottom band and the top band
+  sprig([[262, 1424], [410, 1372], [570, 1404], [730, 1364], [900, 1414], [1040, 1380]], 16, 40, 10),
+  sprig([[480, -16], [630, 20], [790, -4], [930, 22], [1060, -8]], 11, 28, 11),
 ].join('')
 
 // ---------------------------------------------------------------- the scene
@@ -232,7 +257,7 @@ const SILHOUETTE = [
 export function networkScene(isBusy: boolean, now: number): string {
   const rand = rng(77)
 
-  // Static glow at the edges, so the art survives the frosted panels.
+  // Static glow behind the hubs and thumbnails, so the art survives the frosted panels.
   const halos = STARS.map(s => `<circle cx="${s.x}" cy="${s.y}" r="${n(s.r * 1.5)}" fill="#7be06a"/>`).join('')
     + THUMBS.map(t => `<rect x="${n(t.x - t.s / 2 - 4)}" y="${n(t.y - t.s / 2 - 4)}" width="${t.s + 8}" height="${t.s + 8}" fill="#b7a4ff"/>`).join('')
 
@@ -278,10 +303,12 @@ export function networkScene(isBusy: boolean, now: number): string {
   const centers = THUMBS.map(t => `<circle cx="${t.x}" cy="${t.y}" r="3.4"/>`).join('')
 
   const links = LINKS.map(l => `<path d="${linkD(l)}"/>`).join('')
+  const thread = `<path d="${THREAD_D}" stroke-width="1.4"/>`
   const pulses = LINKS.map((l, i) => {
     const dur = 7 + (i % 4) * 1.6
     return `<path d="${linkD(l)}" pathLength="100" class="wk-pulse" style="animation-duration:${n(dur)}s;animation-delay:${begin(now, dur, i * 1.3)}"/>`
   }).join('')
+    + `<path d="${THREAD_D}" pathLength="100" class="wk-pulse" style="stroke-width:2;animation-duration:16s;animation-delay:${begin(now, 16, 5)}"/>`
 
   // While busy: a bright dot rides the curves from thumbnail to thumbnail.
   const travelers = isBusy
@@ -304,10 +331,10 @@ export function networkScene(isBusy: boolean, now: number): string {
 </linearGradient>
 <radialGradient id="wk-star"><stop offset="0" stop-color="#d9ff9e"/><stop offset=".55" stop-color="#7fd65a"/><stop offset="1" stop-color="#3f9a3a"/></radialGradient>
 <radialGradient id="wk-dot"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".4" stop-color="#d8c8ff" stop-opacity=".45"/><stop offset="1" stop-color="#b48cff" stop-opacity="0"/></radialGradient>
-<radialGradient id="wk-g1" cx="110" cy="1120" r="520" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3a1c6e" stop-opacity=".55"/><stop offset="1" stop-color="#3a1c6e" stop-opacity="0"/></radialGradient>
-<radialGradient id="wk-g2" cx="1180" cy="620" r="560" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0f4a5c" stop-opacity=".5"/><stop offset="1" stop-color="#0f4a5c" stop-opacity="0"/></radialGradient>
+<radialGradient id="wk-g1" cx="560" cy="1460" r="620" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3a1c6e" stop-opacity=".6"/><stop offset="1" stop-color="#3a1c6e" stop-opacity="0"/></radialGradient>
+<radialGradient id="wk-g2" cx="1190" cy="660" r="600" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0f4a5c" stop-opacity=".55"/><stop offset="1" stop-color="#0f4a5c" stop-opacity="0"/></radialGradient>
 <radialGradient id="wk-g3" cx="660" cy="720" r="620" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1c1236" stop-opacity=".7"/><stop offset="1" stop-color="#1c1236" stop-opacity="0"/></radialGradient>
-<radialGradient id="wk-g4" cx="1150" cy="80" r="380" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4a1a4c" stop-opacity=".5"/><stop offset="1" stop-color="#4a1a4c" stop-opacity="0"/></radialGradient>
+<radialGradient id="wk-g4" cx="1060" cy="20" r="460" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4a1a4c" stop-opacity=".5"/><stop offset="1" stop-color="#4a1a4c" stop-opacity="0"/></radialGradient>
 <filter id="wk-soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="9"/></filter>
 <filter id="wk-leaf" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="2.5"/></filter>
 <filter id="wk-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3.5"/></filter>
@@ -329,10 +356,10 @@ ${VARIANTS.map((tr, i) => `<symbol id="wk-t${i}" viewBox="0 0 100 100"><use href
 <rect width="${W}" height="${H}" fill="url(#wk-g4)"/>
 <g fill="#262238" filter="url(#wk-leaf)">${SILHOUETTE}</g>
 <g filter="url(#wk-soft)" opacity="${isBusy ? 0.34 : 0.24}">${halos}</g>
-<g fill="none" stroke="#d9d2ff" stroke-width="6" filter="url(#wk-glow)" opacity=".28">${links}</g>
+<g fill="none" stroke="#d9d2ff" stroke-width="6" filter="url(#wk-glow)" opacity=".28">${links}${thread}</g>
 <g fill="none" stroke="#a7a2c8" stroke-width="1.2" opacity=".45">
-<rect x="-70" y="-70" width="140" height="140" transform="translate(100 1160) rotate(24) scale(1.62)"/>
-<rect x="-70" y="-70" width="140" height="140" transform="translate(1196 1232) rotate(-18) scale(1.2)"/>
+<rect x="-70" y="-70" width="140" height="140" transform="translate(1150 560) rotate(24)"/>
+<rect x="-70" y="-70" width="140" height="140" transform="translate(1180 1236) rotate(-18) scale(1.3)"/>
 </g>
 <g fill="none" stroke-width="1.5" stroke-linecap="round" opacity=".78">${lines}</g>
 ${hullOut}
@@ -341,7 +368,7 @@ ${hullIn}
 ${rings}
 ${stars}
 ${thumbs}
-<g fill="none" stroke="#ece9f7" stroke-width="2.2" stroke-linecap="round" opacity=".62">${links}</g>
+<g fill="none" stroke="#ece9f7" stroke-width="2.2" stroke-linecap="round" opacity=".62">${links}${thread}</g>
 <g opacity="${isBusy ? 0.95 : 0.6}">${pulses}</g>
 <g fill="#fff">${centers}</g>
 ${travelers}
