@@ -2,6 +2,8 @@
 
 Animated dark themes for the Claude desktop app. Each chat gets a look that fits the work in it, and the background livens up while Claude is working.
 
+> **Right now the backgrounds don't move in the app.** In Claude desktop 5.11492.5, theme backgrounds from mods are drawn as still pictures: they move for a moment when they first appear, then hold still. That's an app bug, reported in [anthropics/claude-code#109766](https://github.com/anthropics/claude-code/issues/109766) and [#109744](https://github.com/anthropics/claude-code/issues/109744). The looks still work as still art, and the GIFs below show how they're meant to move. One more catch, from [#109770](https://github.com/anthropics/claude-code/issues/109770): any `@media` rule freezes a scene too, and the window fitting here uses them, so that part will need another approach once motion is back.
+
 <p>
   <img src="docs/motion/moths.gif" width="32%" alt="Night moths: glowing blue butterflies at the edges of a dark chat window">
   <img src="docs/motion/sigil.gif" width="32%" alt="Sigil: a white thorned sigil under the sidebar and a ring diagram at the right edge">
