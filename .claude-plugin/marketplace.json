@@ -1,0 +1,5 @@
+{
+  "name": "claude-themes",
+  "owner": { "name": "Claudia Vaduvescu" },
+  "plugins": [{ "name": "chat-looks", "source": "./", "description": "Animated dark themes for the Claude desktop app, one per kind of work, picked per chat." }]
+}

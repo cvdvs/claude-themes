@@ -1,0 +1,156 @@
+import { atom, read, update } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
+
+import { IDS, LOOKS, findLook, lookForFolder, lookForWords } from './looks'
+import type { LookId } from './looks'
+
+const PLUGIN = 'chat-looks'
+const FALLBACK: LookId = 'swirl'
+
+// True while Claude is working on a turn. The scenes liven up while it is.
+const busy = atom({ plugin: 'chat-looks', key: 'busy' } as const, false, { shape: 'busy-1' })
+// This chat's look, so the reply cards can match it.
+const current = atom({ plugin: 'chat-looks', key: 'look' } as const, FALLBACK as string, { shape: 'look-1' })
+// Whether replies sit in cards.
+const cards = atom({ plugin: 'chat-looks', key: 'cards' } as const, true, { shape: 'cards-1' })
+
+// Store keys: `look:<session id>` is a chat's own look; `look` is the one new chats start with.
+const chatKey = async ($: EngineInterface) => `look:${await $.session.id()}`
+
+async function apply($: EngineInterface, id: LookId) {
+  const one = LOOKS[id]
+  const unpainted = one.problems.find(line => line.startsWith("Desktop won't paint"))
+  if (unpainted !== undefined) {
+    $.ui.toast(unpainted)
+  }
+  await update($, current, () => id)
+  const set = await $.theme.set(one.theme)
+  if (!set.isDrawn) {
+    $.ui.status(set.reason)
+  }
+}
+
+async function saved($: EngineInterface, key: string): Promise<LookId | undefined> {
+  const value = await $.store.get(key)
+  return typeof value === 'string' ? findLook(value) : undefined
+}
+
+const LIST_TEXT = [
+  'Looks: ' + IDS.join(', ') + '.',
+  '/look <name> sets this chat (and new chats that match nothing).',
+  '/look cards turns the reply cards on or off.',
+].join('\n')
+
+export const register: Register = on => {
+  on('session.start', async ($, e, next) => {
+    await $.command.register({
+      name: 'look',
+      description: 'Theme for this chat: /look moths, swirl, halftone, smoke, clusters, sigil, network, glass, pixel, honeycomb, grid',
+    })
+    const key = await chatKey($)
+    let chosen = (await saved($, key)) ?? lookForFolder(e.cwd)
+    if (chosen === undefined) {
+      // A chat opened again: its first messages say what it is about.
+      const history = await $.session.messages()
+      const opening = history
+        .filter(message => message.role === 'user' && message.text.trim() !== '')
+        .slice(0, 3)
+        .map(message => message.text)
+        .join('\n')
+        .slice(0, 4000)
+      const picked = opening === '' ? undefined : lookForWords(opening)
+      if (picked !== undefined) {
+        await $.store.set(key, picked)
+        chosen = picked
+      }
+    }
+    chosen = chosen ?? (await saved($, 'look')) ?? FALLBACK
+    await update($, cards, () => true)
+    if ((await $.store.get('cards')) === false) {
+      await update($, cards, () => false)
+    }
+    await apply($, chosen)
+
+    return next(e)
+  })
+
+  // A chat that has no look of its own takes one from the words of its first message.
+  on('prompt.submit', async ($, e, next) => {
+    if (e.command === undefined && (await $.session.turns()) === 0) {
+      const key = await chatKey($)
+      if ((await saved($, key)) === undefined) {
+        const picked = lookForWords(e.text)
+        if (picked !== undefined) {
+          await $.store.set(key, picked)
+          await apply($, picked)
+        }
+      }
+    }
+
+    return next(e)
+  })
+
+  on('command.run', { command: 'look' }, async ($, e) => {
+    const asked = e.args.trim().toLowerCase()
+    if (asked === '') {
+      return { text: `This chat: ${await read($, current)}.\n${LIST_TEXT}` }
+    }
+    if (asked === 'cards') {
+      const isOn = !(await read($, cards))
+      await update($, cards, () => isOn)
+      await $.store.set('cards', isOn)
+      return { text: isOn ? 'Reply cards on.' : 'Reply cards off.' }
+    }
+    const id = findLook(asked)
+    if (id === undefined) {
+      return { text: `No look called "${asked}".\n${LIST_TEXT}` }
+    }
+    await $.store.set(await chatKey($), id)
+    await $.store.set('look', id)
+    await apply($, id)
+
+    return { text: `${LOOKS[id].label} on for this chat.` }
+  })
+
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId === undefined) {
+      await update($, busy, () => true)
+    }
+    return next(e)
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    if (e.agentId === undefined) {
+      await update($, busy, () => false)
+    }
+    return next(e)
+  })
+
+  on('ui.render', { component: 'Backdrop' }, async ($, e, next) => {
+    if ((e.surface !== 'desktop' && e.surface !== 'mobile') || e.props.plugin !== PLUGIN) {
+      return next(e)
+    }
+    const { Svg } = $.ui.resolve(e)
+    const one = LOOKS[findLook(e.props.scene) ?? FALLBACK]
+    const isBusy = await read($, busy)
+
+    return <Svg source={one.scene(isBusy, Date.now())} alt={one.alt} isInteractive />
+  })
+
+  // Each reply sits in a faint card in the look's colors.
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    if (e.surface !== 'desktop' || !(await read($, cards))) {
+      return next(e)
+    }
+    const { Box } = $.ui.resolve(e)
+    const id = findLook(await read($, current)) ?? FALLBACK
+    const { border, fill } = LOOKS[id].card
+    const inner = await next(e)
+
+    return (
+      <Box borderStyle="round" borderColor={border} backgroundColor={fill} paddingX="md" paddingY="sm">
+        {inner}
+      </Box>
+    )
+  })
+}
