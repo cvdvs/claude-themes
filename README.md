@@ -69,3 +69,7 @@ Everything lives in `hooks/looks.ts`. For each look you can:
 Each scene is one file in `hooks/scenes/`, a function that returns an SVG. Art sits under the sidebar, in the strip to the right of the chat and along the top and bottom edges, so the middle of the window stays quiet for reading. The scenes are drawn for a tall window, about 1250 × 1410, with the sidebar open; on a wider window they're cropped at the top and bottom.
 
 Made by Claudia Vaduvescu with Claude Code.
+
+## License
+
+MIT, see [LICENSE](LICENSE). `hooks/make-colors.js` and `hooks/make-colors.d.ts` come from Claude Code's kit for building mods and aren't covered by this license.
