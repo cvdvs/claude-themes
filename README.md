@@ -44,6 +44,14 @@ Click a picture to see it move.
 | [<img src="docs/stills/honeycomb.jpg" width="220">](docs/motion/honeycomb.gif) | `honeycomb` | Hexagon cells with colored corners and curved lines that draw themselves in, on deep navy. | portfolio, case study, resume |
 | [<img src="docs/stills/grid.jpg" width="220">](docs/motion/grid.gif) | `grid` | The one light look: black pixel masses and tiny numbers on pale paper. | (pick it with `/look grid`) |
 
+## Any window
+
+The looks fit the window you have. In a tall window the art frames the chat from the right and along the top and bottom. Once a wide window leaves room beside the chat, the art frames it on both sides. On a phone it fills the screen behind the conversation. The app frosts the sidebar heavily, so each look also gives it its own layer of big, slow shapes in the look's colors.
+
+<img src="docs/stills/wide-clusters.jpg" alt="Clusters in a wide window: node clusters framing the chat on both sides">
+
+<img src="docs/stills/phones.jpg" alt="Clusters, glass, pixel, sigil and halftone on a phone">
+
 ## How a chat picks its look
 
 You don't have to do anything. When a chat opens:
@@ -68,7 +76,7 @@ Everything lives in `hooks/looks.ts`. For each look you can:
 - add your own words to `words`, so a chat about that topic picks it;
 - change the app colors, how much the panels blur over the art, and the reply card colors.
 
-Each scene is one file in `hooks/scenes/`, a function that returns an SVG. The art sits in a column on the right, behind the ragged ends of lines, and in bands along the top and bottom, so the middle of the window stays quiet for reading. The app frosts the sidebar heavily, so each look also puts big, bright, slow shapes in its own colors under the sidebar (`sidebarLayer` in `hooks/scenes/kit.ts`); fine detail there would only turn to haze. The scenes are drawn for a tall window, about 1250 × 1410, with the sidebar open; on a wider window they're cropped at the top and bottom.
+Each scene is one file in `hooks/scenes/`, a function that returns an SVG. The art sits in a column on the right, behind the ragged ends of lines, and in bands along the top and bottom, so the middle of the window stays quiet for reading. The app frosts the sidebar heavily, so each look also puts big, bright, slow shapes in its own colors under the sidebar (`sidebarLayer` in `hooks/scenes/kit.ts`); fine detail there would only turn to haze. `withSidebar` in the same file fits a scene to the window: it pins the art to the right edge, mirrors it beside the chat in wide windows, and lays the sidebar layer over the sidebar. The scenes are drawn on a 1250 × 1410 canvas, a tall window with the sidebar open.
 
 Made by Claudia Vaduvescu with Claude Code.
 

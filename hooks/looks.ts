@@ -49,7 +49,7 @@ export type Look = {
   label: string
   // The app colors the look starts from: page, cards, panels, menus and three text strengths.
   chrome: Chrome
-  scene: (isBusy: boolean, now: number) => string
+  scene: (isBusy: boolean, now: number, surface?: string) => string
   alt: string
   theme: ThemeSetArgs
   problems: string[]
@@ -126,7 +126,7 @@ const LIST: Look[] = [
   look({
     id: 'halftone',
     label: 'Halftone',
-    scene: withSidebar(halftoneScene, 'ribbons', ['#b700ff', '#6944ff', '#e070ff', '#3d1bff']),
+    scene: withSidebar(halftoneScene, 'ribbons', ['#b700ff', '#6944ff', '#e070ff', '#3d1bff'], '#0b0612'),
     alt: 'Purple glow behind a fine dot screen, a dark shadow through the middle',
     chrome: { page: '#0b0612', card: '#110a1b', panel: '#160c24', menu: '#1a0f2a', text: '#f3eefa', text2: '#c6b8da', muted: '#9a8cb2' },
     roles: { accent: '#b700ff', danger: '#ff4d6d', success: '#4fd88a', warning: '#ffb547', pro: '#6944ff' },
@@ -139,7 +139,7 @@ const LIST: Look[] = [
   look({
     id: 'smoke',
     label: 'Smoke',
-    scene: withSidebar(smokeScene, 'ribbons', ['#9b3dff', '#c77dff', '#ff4fd8', '#6a2bff']),
+    scene: withSidebar(smokeScene, 'ribbons', ['#9b3dff', '#c77dff', '#ff4fd8', '#6a2bff'], '#050309'),
     alt: 'A purple smoke ribbon rising out of black',
     chrome: { page: '#050309', card: '#0b0713', panel: '#110a1c', menu: '#150d22', text: '#f1ebf9', text2: '#bfb2d4', muted: '#958aab' },
     roles: { accent: '#a35cff', danger: '#ff4d6d', success: '#4fd88a', warning: '#ffb547', pro: '#c77dff' },
@@ -152,7 +152,7 @@ const LIST: Look[] = [
   look({
     id: 'clusters',
     label: 'Clusters',
-    scene: withSidebar(clustersScene, 'orbs', ['#2ed8ec', '#ff3fa4', '#ffd23a', '#7ee068', '#9d66ff', '#ff8a3d']),
+    scene: withSidebar(clustersScene, 'orbs', ['#2ed8ec', '#ff3fa4', '#ffd23a', '#7ee068', '#9d66ff', '#ff8a3d'], '#030305'),
     alt: 'Clusters of colored nodes joined by fine grey lines on black',
     chrome: { page: '#030305', card: '#0b0c12', panel: '#0f1017', menu: '#13141c', text: '#f5f7fb', text2: '#c4c9d4', muted: '#949aa8' },
     roles: { accent: '#2ed8ec', danger: '#ff5370', success: '#7ee068', warning: '#ffc247', pro: '#9d66ff' },
@@ -165,7 +165,7 @@ const LIST: Look[] = [
   look({
     id: 'moths',
     label: 'Night moths',
-    scene: withSidebar(mothScene, 'moths', ['#6fb8ff']),
+    scene: withSidebar(mothScene, 'moths', ['#6fb8ff'], '#04060b'),
     alt: 'Glowing blue butterflies drifting in the dark',
     chrome: { page: '#04060b', card: '#080c14', panel: '#0c111b', menu: '#111724', text: '#eef4ff', text2: '#c2cfe4', muted: '#93a3bf' },
     roles: { accent: '#6fb8ff', danger: '#ff5d73', success: '#5fe0a8', warning: '#ffbf5a', pro: '#a98bff' },
@@ -178,7 +178,7 @@ const LIST: Look[] = [
   look({
     id: 'sigil',
     label: 'Sigil',
-    scene: withSidebar(sigilScene, 'ribbons', ['#ece6d8', '#8b5cff', '#d6d0ff', '#34e3e3']),
+    scene: withSidebar(sigilScene, 'ribbons', ['#ece6d8', '#8b5cff', '#d6d0ff', '#34e3e3'], '#08080c'),
     alt: 'An occult diagram of stacked rings and a white sigil on grainy black',
     chrome: { page: '#08080c', card: '#0e0e16', panel: '#12121b', menu: '#16161f', text: '#e8e8f0', text2: '#b4b4c6', muted: '#8a8aa0' },
     roles: { accent: '#8b5cff', danger: '#e0555a', success: '#8fcf8a', warning: '#d9b45c', pro: '#34e3e3' },
@@ -191,7 +191,7 @@ const LIST: Look[] = [
   look({
     id: 'network',
     label: 'Network',
-    scene: withSidebar(networkScene, 'orbs', ['#ff5d8f', '#6be3e0', '#7be06a', '#9d8cff', '#5b8cff']),
+    scene: withSidebar(networkScene, 'orbs', ['#ff5d8f', '#6be3e0', '#7be06a', '#9d8cff', '#5b8cff'], '#07060c'),
     alt: 'A colorful network of clusters, starbursts and linked iridescent squares on dark',
     chrome: { page: '#07060c', card: '#0e0c16', panel: '#12101c', menu: '#161421', text: '#ece9f7', text2: '#b3adca', muted: '#8b85a3' },
     roles: { accent: '#9d8cff', danger: '#ff5d8f', success: '#7be06a', warning: '#ffc247', pro: '#6be3e0' },
@@ -204,7 +204,7 @@ const LIST: Look[] = [
   look({
     id: 'glass',
     label: 'Glass',
-    scene: withSidebar(glassScene, 'orbs', ['#eef24a', '#7aa7ff', '#b46cff', '#f5f0ff']),
+    scene: withSidebar(glassScene, 'orbs', ['#eef24a', '#7aa7ff', '#b46cff', '#f5f0ff'], '#06061a'),
     alt: 'Glass bricks over a purple glow and soft circles drifting with colored trails',
     chrome: { page: '#06061a', card: '#0b0b21', panel: '#0f0f26', menu: '#13132b', text: '#eeecff', text2: '#b5b6dc', muted: '#8d8fb8' },
     roles: { accent: '#b46cff', danger: '#ff5d7a', success: '#5fe0a0', warning: '#eef24a', pro: '#8d6bff' },
@@ -217,7 +217,7 @@ const LIST: Look[] = [
   look({
     id: 'pixel',
     label: 'Pixel',
-    scene: withSidebar(pixelScene, 'blocks', ['#e2342b', '#e8e2d0', '#b46ff5', '#8a8a8a']),
+    scene: withSidebar(pixelScene, 'blocks', ['#e2342b', '#e8e2d0', '#b46ff5', '#8a8a8a'], '#0e0e10'),
     alt: 'Pixel blocks with letters, a red checker and purple line work on dark graph paper',
     chrome: { page: '#0e0e10', card: '#141417', panel: '#17171a', menu: '#1b1b1f', text: '#e8e2d0', text2: '#b8b2a5', muted: '#8f8a80' },
     roles: { accent: '#b46ff5', danger: '#ff4d4d', success: '#8fd16a', warning: '#f0b43c', pro: '#e8e2d0' },
@@ -230,7 +230,7 @@ const LIST: Look[] = [
   look({
     id: 'honeycomb',
     label: 'Honeycomb',
-    scene: withSidebar(honeycombScene, 'orbs', ['#ffe38a', '#ffb48a', '#ff9ec8', '#b99bfa', '#8ee6d6']),
+    scene: withSidebar(honeycombScene, 'orbs', ['#ffe38a', '#ffb48a', '#ff9ec8', '#b99bfa', '#8ee6d6'], '#070b1d'),
     alt: 'Hexagonal cells with colored vertices and curved links on deep navy',
     chrome: { page: '#070b1d', card: '#0b1026', panel: '#0e1430', menu: '#121835', text: '#eef1fb', text2: '#c3c9e2', muted: '#949cbc' },
     roles: { accent: '#b99bfa', danger: '#ff7a8a', success: '#9be8a8', warning: '#ffd38a', pro: '#9db8ff' },
@@ -243,7 +243,7 @@ const LIST: Look[] = [
   look({
     id: 'swirl',
     label: 'Night swirl',
-    scene: withSidebar(swirlScene, 'ribbons', ['#22e1ff', '#7b4dff', '#ff3fd2', '#ffd23a', '#b6ff3a']),
+    scene: withSidebar(swirlScene, 'ribbons', ['#22e1ff', '#7b4dff', '#ff3fd2', '#ffd23a', '#b6ff3a'], '#050507'),
     alt: 'Glowing colored ribbons swirling on black',
     chrome: { page: '#050507', card: '#0b0a10', panel: '#110f18', menu: '#16141e', text: '#f2f0f7', text2: '#c6c2d4', muted: '#9a95ad' },
     roles: { accent: '#8a5cff', danger: '#ff4d6d', success: '#5ee38a', warning: '#ffb03a', pro: '#2fd8e8' },
@@ -257,7 +257,7 @@ const LIST: Look[] = [
     id: 'grid',
     label: 'Pixel grid',
     light: true,
-    scene: withSidebar(gridScene, 'blocks', ['#1e1e1e', '#2b2fd9', '#5c5c5c']),
+    scene: withSidebar(gridScene, 'blocks', ['#1e1e1e', '#2b2fd9', '#5c5c5c'], '#dfdfdc'),
     alt: 'A pale pixel grid with dark masses and tiny numbers',
     chrome: { page: '#dfdfdc', card: '#e7e7e4', panel: '#efefec', menu: '#efefec', text: '#121212', text2: '#383838', muted: '#575757' },
     roles: { accent: '#2a2fd6', danger: '#c0302a', success: '#2f7a3d', warning: '#a3650c', pro: '#5a3fc0' },

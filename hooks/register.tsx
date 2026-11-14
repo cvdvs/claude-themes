@@ -135,7 +135,7 @@ export const register: Register = on => {
     const one = LOOKS[findLook(e.props.scene) ?? FALLBACK]
     const isBusy = await read($, busy)
 
-    return <Svg source={one.scene(isBusy, Date.now())} alt={one.alt} isInteractive />
+    return <Svg source={one.scene(isBusy, Date.now(), e.surface)} alt={one.alt} isInteractive />
   })
 
   // Each reply sits in a faint card in the look's colors.

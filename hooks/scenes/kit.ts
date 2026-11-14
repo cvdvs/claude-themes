@@ -106,11 +106,42 @@ export function sidebarLayer(kind: SidebarKind, colors: string[], isBusy: boolea
 <g clip-path="url(#sb-clip)" opacity="${isBusy ? 1 : 0.86}">${parts.join('\n')}</g>`
 }
 
-// A scene with the sidebar layer drawn over its own art, just before the closing tag.
+// A scene fitted to any window. Scenes are drawn on the 1250 × 1410 canvas. The app keeps
+// the chat column centered in the area right of the sidebar, at most about 1280 px wide.
+// - Narrow windows (no room beside the chat): the canvas right of the sidebar is pinned to the
+//   window's right edge and scaled to its height, so the right column and the top and bottom
+//   bands frame the chat.
+// - Wide windows (from 1900 px): the scene's right column hugs the chat on the right, and a
+//   mirror of it hugs the chat on the left, framing it on both sides.
+// - Always: the sidebar layer fills the sidebar (about 256 px) at the left edge.
+// - Phones (no sidebar): the art fills the screen from its right edge, where the columns are.
+// The scene is drawn once into <defs> and shown with <use>, so its ids stay unique.
+export type Surface = 'desktop' | 'mobile' | string
+
+const CHAT_HALF = 640
+const SIDEBAR = 256
+const WIDE = 2 * (CHAT_HALF + SIDEBAR / 2) + 2 * 260 // room for a 260 px column beside the chat
+
 export function withSidebar(
   scene: (isBusy: boolean, now: number) => string,
   kind: SidebarKind,
   colors: string[],
-): (isBusy: boolean, now: number) => string {
-  return (isBusy, now) => scene(isBusy, now).replace(/<\/svg>\s*$/, `${sidebarLayer(kind, colors, isBusy, now)}</svg>`)
+  background: string,
+): (isBusy: boolean, now: number, surface?: Surface) => string {
+  return (isBusy, now, surface = 'desktop') => {
+    const drawn = scene(isBusy, now)
+    const inner = drawn.slice(drawn.indexOf('>') + 1, drawn.lastIndexOf('</svg>'))
+    const head = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><defs><g id="scene">${inner}</g></defs><rect width="100%" height="100%" fill="${background}"/>`
+    if (surface === 'mobile') {
+      return `${head}<svg width="100%" height="100%" viewBox="${SIDEBAR} 0 ${W - SIDEBAR} ${H}" preserveAspectRatio="xMaxYMid slice"><use href="#scene"/></svg></svg>`
+    }
+    const column = `viewBox="1000 0 250 ${H}"`
+    const left = SIDEBAR / 2 - CHAT_HALF // chat's left edge, from the window's middle
+    const right = SIDEBAR / 2 + CHAT_HALF // chat's right edge, from the window's middle
+    return `${head}<style>.wide{display:none}@media (min-width:${WIDE}px){.wide{display:inline}.narrow{display:none}}</style>
+<svg class="narrow" width="100%" height="100%" viewBox="${SIDEBAR} 0 ${W - SIDEBAR} ${H}" preserveAspectRatio="xMaxYMid meet"><use href="#scene"/></svg>
+<g class="wide" transform="translate(${left} 0)"><svg width="50%" height="100%" ${column} preserveAspectRatio="xMaxYMid meet"><g transform="translate(2250 0) scale(-1 1)"><use href="#scene"/></g></svg></g>
+<g class="wide" transform="translate(${right} 0)"><svg x="50%" width="50%" height="100%" ${column} preserveAspectRatio="xMinYMid meet"><use href="#scene"/></svg></g>
+<svg width="${SIDEBAR}" height="100%" viewBox="0 0 ${SIDEBAR} ${H}" preserveAspectRatio="xMinYMid slice">${sidebarLayer(kind, colors, isBusy, now)}</svg></svg>`
+  }
 }
