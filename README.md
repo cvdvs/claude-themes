@@ -46,12 +46,13 @@ Click a picture to see it move.
 
 ## How a chat picks its look
 
-You don't have to do anything. When a chat opens, it takes the first of these that applies:
+You don't have to do anything. When a chat opens:
 
-1. The look you set in that chat before.
-2. The look for the folder the chat started in, if you've listed that folder (see below).
-3. The look whose words show up most in the chat's first messages.
-4. The last look you picked anywhere.
+1. If you set a look in that chat with `/look`, it keeps it.
+2. Otherwise the chat's first messages are matched against each look's words. Project names you've added count four times as much as general words, and a chat started in a folder you've listed for a look gives that look a head start. The highest score wins.
+3. If nothing matches, the chat gets the last look you picked.
+
+A new chat picks its look from your first message. An older chat picks again each time you open it, so changes you make to the words reach old chats too.
 
 To change it, type `/look` and a name, like `/look sigil`. That chat keeps it, and new chats that match nothing start with it too.
 
@@ -62,7 +63,8 @@ To change it, type `/look` and a name, like `/look sigil`. That chat keeps it, a
 
 Everything lives in `hooks/looks.ts`. For each look you can:
 
-- add your own project folders to `folders`, so a chat started in one always gets that look;
+- add your own project folders to `folders`, so a chat started in one leans to that look;
+- add your project names to `names`, so a chat that mentions one picks that look;
 - add your own words to `words`, so a chat about that topic picks it;
 - change the app colors, how much the panels blur over the art, and the reply card colors.
 

@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { IDS, LOOKS, findLook, lookForFolder, lookForWords } from './looks'
+import { IDS, LOOKS, findLook, pickForChat } from './looks'
 import type { LookId } from './looks'
 
 const PLUGIN = 'chat-looks'
@@ -14,8 +14,10 @@ const current = atom({ plugin: 'chat-looks', key: 'look' } as const, FALLBACK as
 // Whether replies sit in cards.
 const cards = atom({ plugin: 'chat-looks', key: 'cards' } as const, true, { shape: 'cards-1' })
 
-// Store keys: `look:<session id>` is a chat's own look; `look` is the one new chats start with.
-const chatKey = async ($: EngineInterface) => `look:${await $.session.id()}`
+// Store keys: `chose:<session id>` is a look picked by hand for a chat; `look` is the last one
+// picked by hand, which chats that match nothing start with. Automatic picks aren't stored:
+// they're worked out again each time a chat opens.
+const chatKey = async ($: EngineInterface) => `chose:${await $.session.id()}`
 
 async function apply($: EngineInterface, id: LookId) {
   const one = LOOKS[id]
@@ -47,10 +49,9 @@ export const register: Register = on => {
       name: 'look',
       description: 'Theme for this chat: /look moths, swirl, halftone, smoke, clusters, sigil, network, glass, pixel, honeycomb, grid',
     })
-    const key = await chatKey($)
-    let chosen = (await saved($, key)) ?? lookForFolder(e.cwd)
+    let chosen = await saved($, await chatKey($))
     if (chosen === undefined) {
-      // A chat opened again: its first messages say what it is about.
+      // A chat opened again: its folder and first messages say what it is about.
       const history = await $.session.messages()
       const opening = history
         .filter(message => message.role === 'user' && message.text.trim() !== '')
@@ -58,11 +59,7 @@ export const register: Register = on => {
         .map(message => message.text)
         .join('\n')
         .slice(0, 4000)
-      const picked = opening === '' ? undefined : lookForWords(opening)
-      if (picked !== undefined) {
-        await $.store.set(key, picked)
-        chosen = picked
-      }
+      chosen = pickForChat(e.cwd, opening)
     }
     chosen = chosen ?? (await saved($, 'look')) ?? FALLBACK
     await update($, cards, () => true)
@@ -74,16 +71,12 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // A chat that has no look of its own takes one from the words of its first message.
+  // A new chat with no look picked by hand takes one from its folder and first message.
   on('prompt.submit', async ($, e, next) => {
-    if (e.command === undefined && (await $.session.turns()) === 0) {
-      const key = await chatKey($)
-      if ((await saved($, key)) === undefined) {
-        const picked = lookForWords(e.text)
-        if (picked !== undefined) {
-          await $.store.set(key, picked)
-          await apply($, picked)
-        }
+    if (e.command === undefined && (await $.session.turns()) === 0 && (await saved($, await chatKey($))) === undefined) {
+      const picked = pickForChat(await $.session.cwd(), e.text)
+      if (picked !== undefined && picked !== findLook(await read($, current))) {
+        await apply($, picked)
       }
     }
 

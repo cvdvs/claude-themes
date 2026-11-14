@@ -1,7 +1,8 @@
 // Every look: its scene, its app colors, how the panels frost over it, the reply card,
 // and the folder names and words that pick it automatically for a chat.
 // To make a look pick itself for your projects, add your folder names to `folders`
-// (a chat started inside one gets that look) and your own topic words to `words`.
+// (a chat started inside one leans to that look), your project names to `names`
+// and your own topic words to `words`.
 
 import type { ThemeBackdropGlass, ThemeSetArgs } from 'claude-code'
 
@@ -55,7 +56,9 @@ export type Look = {
   card: { border: string; fill: string }
   // Folder names that settle the look for a chat started inside them.
   folders: string[]
-  // Words in a chat's first message that pick the look.
+  // Project names in a chat's first messages: a strong sign (each counts 4).
+  names: string[]
+  // General words in a chat's first messages: a weak sign (each counts 1).
   words: string[]
 }
 
@@ -129,6 +132,7 @@ const LIST: Look[] = [
     glass: { blur: 3, tint: '#0b0614', opacity: 0.42 },
     card: { border: '#b700ff3d', fill: '#110a1b99' },
     folders: [],
+    names: [],
     words: ['brand', 'branding', 'logo', 'identity', 'agency', 'client', 'proposal', 'pitch deck', 'pricing', 'seo', 'marketing', 'landing page'],
   }),
   look({
@@ -141,6 +145,7 @@ const LIST: Look[] = [
     glass: { blur: 10, tint: '#06030c', opacity: 0.45 },
     card: { border: '#a35cff3d', fill: '#0b071399' },
     folders: [],
+    names: [],
     words: ['video', 'film', 'reel', 'promo', 'social post', 'instagram', 'tiktok', 'youtube', 'caption', 'thumbnail', 'storyboard'],
   }),
   look({
@@ -153,6 +158,7 @@ const LIST: Look[] = [
     glass: { blur: 2, tint: '#000000', opacity: 0.4 },
     card: { border: '#2ed8ec33', fill: '#0b0c1299' },
     folders: [],
+    names: [],
     words: ['research', 'audit', 'dataset', 'analysis', 'dashboard', 'metrics', 'report', 'survey', 'benchmark'],
   }),
   look({
@@ -165,6 +171,7 @@ const LIST: Look[] = [
     glass: { blur: 12, tint: '#04060b', opacity: 0.5 },
     card: { border: '#6fb8ff33', fill: '#080c148c' },
     folders: [],
+    names: [],
     words: ['astrolog', 'horoscope', 'tarot', 'zodiac', 'birth chart', 'transit', 'moon', 'dream', 'ritual'],
   }),
   look({
@@ -177,6 +184,7 @@ const LIST: Look[] = [
     glass: { blur: 3, tint: '#08080c', opacity: 0.42 },
     card: { border: '#8b5cff33', fill: '#0e0e1699' },
     folders: [],
+    names: [],
     words: ['philosoph', 'consciousness', 'esoteric', 'occult', 'essay', 'mystic', 'myth', 'metaphysic', 'gnostic', 'hermetic'],
   }),
   look({
@@ -189,6 +197,7 @@ const LIST: Look[] = [
     glass: { blur: 3, tint: '#07060c', opacity: 0.4 },
     card: { border: '#9d8cff33', fill: '#0e0c1699' },
     folders: [],
+    names: [],
     words: ['wiki', 'obsidian', 'notes', 'knowledge base', 'vault', 'zettelkasten', 'library', 'bookmarks', 'second brain'],
   }),
   look({
@@ -201,6 +210,7 @@ const LIST: Look[] = [
     glass: { blur: 4, tint: '#06061a', opacity: 0.42 },
     card: { border: '#b46cff3d', fill: '#0b0b2199' },
     folders: [],
+    names: [],
     words: ['habit', 'music', 'playlist', 'recipe', 'journal', 'math', 'side project', 'hobby', 'just for me'],
   }),
   look({
@@ -213,6 +223,7 @@ const LIST: Look[] = [
     glass: { blur: 3, tint: '#0e0e10', opacity: 0.45 },
     card: { border: '#b46ff533', fill: '#14141799' },
     folders: [],
+    names: [],
     words: ['game', 'godot', 'unity', 'arduino', 'hardware', 'firmware', 'raspberry pi', 'pixel art', 'puzzle', 'e-ink'],
   }),
   look({
@@ -225,6 +236,7 @@ const LIST: Look[] = [
     glass: { blur: 3, tint: '#0a0e1f', opacity: 0.4 },
     card: { border: '#b99bfa33', fill: '#0b102699' },
     folders: [],
+    names: [],
     words: ['portfolio', 'case study', 'resume', 'job application', 'interview', 'linkedin', 'personal site'],
   }),
   look({
@@ -237,6 +249,7 @@ const LIST: Look[] = [
     glass: { blur: 28, tint: '#050507', opacity: 0.6 },
     card: { border: '#8a5cff33', fill: '#0b0a108c' },
     folders: [],
+    names: [],
     words: [],
   }),
   look({
@@ -250,6 +263,7 @@ const LIST: Look[] = [
     glass: { blur: 4, tint: '#ececea', opacity: 0.74 },
     card: { border: '#12121226', fill: '#efefecb3' },
     folders: [],
+    names: [],
     words: [],
   }),
 ]
@@ -280,20 +294,75 @@ export function lookForFolder(cwd: string): LookId | undefined {
   return best?.id
 }
 
-// The look whose words a message uses most. Phrases of two or more words count double.
-export function lookForWords(text: string): LookId | undefined {
+// How strongly a chat's opening points at each look. Names count 4 per word and general
+// words 1 per word, each up to three times; a match must start a word, so "art"
+// doesn't match inside "start".
+function escape(text: string) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function count(lower: string, phrase: string) {
+  const found = lower.match(new RegExp(`(^|[^a-z0-9])${escape(phrase)}`, 'g'))
+  return Math.min(found?.length ?? 0, 3)
+}
+
+function scores(text: string): Map<LookId, number> {
   const lower = text.toLowerCase()
-  let best: { id: LookId; score: number } | undefined
+  const found = new Map<LookId, number>()
   for (const one of LIST) {
     let score = 0
-    for (const word of one.words) {
-      if (lower.includes(word)) {
-        score += word.includes(' ') ? 2 : 1
-      }
+    for (const name of one.names) {
+      score += count(lower, name) * 4 * name.split(' ').length
     }
-    if (score > 0 && (best === undefined || score > best.score)) {
-      best = { id: one.id, score }
+    for (const word of one.words) {
+      score += count(lower, word) * word.split(' ').length
+    }
+    if (score > 0) {
+      found.set(one.id, score)
     }
   }
-  return best?.id
+  return found
+}
+
+function top(found: Map<LookId, number>): LookId | undefined {
+  let winner: { id: LookId; score: number } | undefined
+  for (const [id, score] of found) {
+    if (winner === undefined || score > winner.score) {
+      winner = { id, score }
+    }
+  }
+  return winner?.id
+}
+
+export function lookForWords(text: string): LookId | undefined {
+  return top(scores(text))
+}
+
+// Folders that hold many kinds of work, so they only lean a little. Add yours, like a
+// notes vault that holds every project.
+const BROAD: string[] = []
+
+// The look for a chat from its folder and its opening messages. The folder adds 6 to
+// its look (1 for a broad folder), then the highest score wins: a project folder holds
+// unless the chat plainly talks about another project.
+export function pickForChat(cwd: string, opening: string): LookId | undefined {
+  const found = opening.trim() === '' ? new Map<LookId, number>() : scores(opening)
+  const folder = lookForFolder(cwd)
+  if (folder !== undefined) {
+    const broad = BROAD.some(one => cwd.includes(one)) && lookForFolderIsBroad(cwd)
+    found.set(folder, (found.get(folder) ?? 0) + (broad ? 1 : 6))
+  }
+  return top(found)
+}
+
+// True when the folder match came only from a broad folder name.
+function lookForFolderIsBroad(cwd: string): boolean {
+  for (const one of LIST) {
+    for (const folder of one.folders) {
+      if (cwd.includes(folder) && !BROAD.includes(folder)) {
+        return false
+      }
+    }
+  }
+  return true
 }
