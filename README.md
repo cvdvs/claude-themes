@@ -68,7 +68,7 @@ Everything lives in `hooks/looks.ts`. For each look you can:
 - add your own words to `words`, so a chat about that topic picks it;
 - change the app colors, how much the panels blur over the art, and the reply card colors.
 
-Each scene is one file in `hooks/scenes/`, a function that returns an SVG. The app draws the sidebar almost solid, so the art sits in a column on the right, behind the ragged ends of lines, and in bands along the top and bottom. The middle of the window stays quiet for reading. The scenes are drawn for a tall window, about 1250 × 1410, with the sidebar open; on a wider window they're cropped at the top and bottom.
+Each scene is one file in `hooks/scenes/`, a function that returns an SVG. The art sits in a column on the right, behind the ragged ends of lines, and in bands along the top and bottom, so the middle of the window stays quiet for reading. The app frosts the sidebar heavily, so each look also puts big, bright, slow shapes in its own colors under the sidebar (`sidebarLayer` in `hooks/scenes/kit.ts`); fine detail there would only turn to haze. The scenes are drawn for a tall window, about 1250 × 1410, with the sidebar open; on a wider window they're cropped at the top and bottom.
 
 Made by Claudia Vaduvescu with Claude Code.
 
